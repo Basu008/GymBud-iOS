@@ -18,4 +18,16 @@ enum AppStrings{
         static let signIn = "LOG IN"
         static let versionText = "v1.0.0"
     }
+
+    enum SignUp {
+        static let title = "CREATE\nACCOUNT"
+        static let subtitle = "Join the movement and track your progress."
+        static let username = "USERNAME"
+        static let email = "EMAIL ADDRESS"
+        static let password = "CREATE PASSWORD"
+        static let confirmPassword = "CONFIRM PASSWORD"
+        static let createAccount = "CREATE ACCOUNT"
+        static let existingAccount = "Already have an account?"
+        static let signIn = "SIGN IN"
+    }
 }

@@ -11,7 +11,7 @@ import SwiftUI
 struct GymBudApp: App {
     var body: some Scene {
         WindowGroup {
-            OnboardingView()
+            RootView()
         }
     }
 }

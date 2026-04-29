@@ -9,10 +9,17 @@ import SwiftUI
 
 struct OnboardingView: View {
     @StateObject private var viewModel = OnboardingViewModel()
+    let onGetStarted: () -> Void
+
+    init(onGetStarted: @escaping () -> Void = {}) {
+        self.onGetStarted = onGetStarted
+    }
 
     var body: some View {
         GeometryReader { geo in
-            let contentWidth = min(geo.size.width - 48, 340)
+            let safeWidth = sanitizedDimension(geo.size.width)
+            let safeHeight = sanitizedDimension(geo.size.height)
+            let contentWidth = min(max(safeWidth - 48, 0), 340)
 
             ZStack {
                 Color.black
@@ -21,7 +28,7 @@ struct OnboardingView: View {
                 Image(viewModel.content.backgroundImageName)
                     .resizable()
                     .scaledToFill()
-                    .frame(width: geo.size.width, height: geo.size.height)
+                    .frame(width: safeWidth, height: safeHeight)
                     .clipped()
                     .ignoresSafeArea()
 
@@ -56,7 +63,7 @@ struct OnboardingView: View {
 
                     Spacer(minLength: 0)
                 }
-                .frame(width: geo.size.width, height: geo.size.height, alignment: .top)
+                .frame(width: safeWidth, height: safeHeight, alignment: .top)
             }
         }
     }
@@ -103,6 +110,7 @@ private extension OnboardingView {
         VStack(spacing: 16) {
             GBPrimaryButton(title: viewModel.content.primaryButtonTitle) {
                 viewModel.didTapGetStarted()
+                onGetStarted()
             }
 
             GBSecondaryButton(title: viewModel.content.secondaryButtonTitle) {
@@ -116,6 +124,11 @@ private extension OnboardingView {
         Text(viewModel.content.footerVersion)
             .font(AppFonts.Body.medium(11))
             .foregroundStyle(AppColors.onSurfaceVariant.opacity(0.28))
+    }
+
+    func sanitizedDimension(_ value: CGFloat) -> CGFloat {
+        guard value.isFinite else { return 0 }
+        return max(value, 0)
     }
 }
 
