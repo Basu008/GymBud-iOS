@@ -10,9 +10,14 @@ import SwiftUI
 struct OnboardingView: View {
     @StateObject private var viewModel = OnboardingViewModel()
     let onGetStarted: () -> Void
+    let onSignIn: () -> Void
 
-    init(onGetStarted: @escaping () -> Void = {}) {
+    init(
+        onGetStarted: @escaping () -> Void = {},
+        onSignIn: @escaping () -> Void = {}
+    ) {
         self.onGetStarted = onGetStarted
+        self.onSignIn = onSignIn
     }
 
     var body: some View {
@@ -115,6 +120,7 @@ private extension OnboardingView {
 
             GBSecondaryButton(title: viewModel.content.secondaryButtonTitle) {
                 viewModel.didTapSignIn()
+                onSignIn()
             }
         }
         .frame(width: contentWidth)

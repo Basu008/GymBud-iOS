@@ -28,6 +28,20 @@ enum AppStrings{
         static let confirmPassword = "CONFIRM PASSWORD"
         static let createAccount = "CREATE ACCOUNT"
         static let existingAccount = "Already have an account?"
-        static let signIn = "SIGN IN"
+        static let signIn = "LOG IN"
+    }
+
+    enum LogIn {
+        static let title = "LOG IN"
+        static let subtitle = "Access your training matrix."
+        static let username = "USERNAME"
+        static let password = "PASSWORD"
+        static let usernamePlaceholder = "Enter your username"
+        static let passwordPlaceholder = "***********"
+        static let primaryButtonTitle = "LOG IN"
+        static let footerPrefix = "New to the app?"
+        static let footerActionTitle = "CREATE ACCOUNT"
+        static let invalidUsernameMessage = "username is invalid"
+        static let invalidPasswordMessage = "incorrect password"
     }
 }

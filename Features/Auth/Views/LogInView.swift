@@ -1,5 +1,5 @@
 //
-//  SignUpView.swift
+//  LogInView.swift
 //  GymBud
 //
 //  Created by Codex on 29/04/26.
@@ -7,16 +7,14 @@
 
 import SwiftUI
 
-struct SignUpView: View {
+struct LogInView: View {
     @State private var username = ""
-    @State private var email = ""
     @State private var password = ""
-    @State private var confirmPassword = ""
     @State private var attemptedSubmit = false
-    let onSignIn: () -> Void
+    let onCreateAccount: () -> Void
 
-    init(onSignIn: @escaping () -> Void = {}) {
-        self.onSignIn = onSignIn
+    init(onCreateAccount: @escaping () -> Void = {}) {
+        self.onCreateAccount = onCreateAccount
     }
 
     var body: some View {
@@ -53,7 +51,7 @@ struct SignUpView: View {
                     Spacer(minLength: 24)
 
                     VStack(spacing: 14) {
-                        createAccountButton
+                        primaryButton
                             .padding(.horizontal, 24)
 
                         footer
@@ -67,16 +65,16 @@ struct SignUpView: View {
     }
 }
 
-private extension SignUpView {
+private extension LogInView {
     var titleSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(AppStrings.SignUp.title)
+            Text(AppStrings.LogIn.title)
                 .font(AppFonts.Headline.bold(30))
                 .foregroundStyle(AppColors.onBackground)
                 .lineSpacing(-2)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Text(AppStrings.SignUp.subtitle)
+            Text(AppStrings.LogIn.subtitle)
                 .font(AppFonts.Body.medium(16))
                 .foregroundStyle(AppColors.onSurfaceVariant.opacity(0.92))
                 .lineSpacing(4)
@@ -88,9 +86,9 @@ private extension SignUpView {
     var formSection: some View {
         VStack(alignment: .leading, spacing: 14) {
             labeledField(
-                title: AppStrings.SignUp.username,
+                title: AppStrings.LogIn.username,
                 text: $username,
-                prompt: "alex_ironside",
+                prompt: AppStrings.LogIn.usernamePlaceholder,
                 leadingSystemImage: "person.crop.circle",
                 trailingSystemImage: usernameError == nil ? nil : "exclamationmark.circle",
                 trailingColor: AppColors.error,
@@ -99,68 +97,23 @@ private extension SignUpView {
             )
 
             labeledField(
-                title: AppStrings.SignUp.email,
-                text: $email,
-                prompt: "alex.iron@performance.com",
-                leadingSystemImage: "envelope",
-                trailingSystemImage: emailError == nil ? nil : "at.circle",
-                trailingColor: AppColors.error,
-                isSecure: false,
-                errorMessage: emailError
-            )
-
-            VStack(alignment: .leading, spacing: 10) {
-                labeledField(
-                    title: AppStrings.SignUp.password,
-                    text: $password,
-                    prompt: "Enter password",
-                    leadingSystemImage: "lock",
-                    trailingSystemImage: "eye.slash",
-                    trailingColor: AppColors.primary,
-                    isSecure: true,
-                    errorMessage: nil
-                )
-
-                HStack(spacing: 8) {
-                    Text("STRENGTH: \(passwordStrength.label)")
-                        .font(AppFonts.Body.bold(13))
-                        .tracking(1.2)
-                        .foregroundStyle(passwordStrength.color)
-
-                    Spacer()
-
-                    ForEach(0..<4, id: \.self) { index in
-                        Capsule()
-                            .fill(index < passwordStrength.level ? passwordStrength.color : AppColors.surfaceBright)
-                            .frame(width: 30, height: 5)
-                            .shadow(
-                                color: index < passwordStrength.level ? passwordStrength.color.opacity(0.55) : .clear,
-                                radius: 5,
-                                x: 0,
-                                y: 0
-                            )
-                    }
-                }
-            }
-
-            labeledField(
-                title: AppStrings.SignUp.confirmPassword,
-                text: $confirmPassword,
-                prompt: "Confirm password",
-                leadingSystemImage: "checkmark.shield",
-                trailingSystemImage: confirmPasswordTrailingIcon,
-                trailingColor: confirmPasswordTrailingColor,
+                title: AppStrings.LogIn.password,
+                text: $password,
+                prompt: AppStrings.LogIn.passwordPlaceholder,
+                leadingSystemImage: "lock",
+                trailingSystemImage: passwordError == nil ? "eye.slash" : "exclamationmark.circle",
+                trailingColor: passwordError == nil ? AppColors.primary : AppColors.error,
                 isSecure: true,
-                errorMessage: confirmPasswordError
+                errorMessage: passwordError
             )
         }
     }
 
-    var createAccountButton: some View {
+    var primaryButton: some View {
         Button {
             attemptedSubmit = true
         } label: {
-            Text(AppStrings.SignUp.createAccount)
+            Text(AppStrings.LogIn.primaryButtonTitle)
                 .font(AppFonts.Headline.bold(18))
                 .foregroundStyle(Color.black.opacity(0.78))
                 .frame(maxWidth: .infinity)
@@ -180,12 +133,12 @@ private extension SignUpView {
 
     var footer: some View {
         HStack(spacing: 6) {
-            Text(AppStrings.SignUp.existingAccount)
+            Text(AppStrings.LogIn.footerPrefix)
                 .font(AppFonts.Body.medium(14))
                 .foregroundStyle(AppColors.onSurfaceVariant.opacity(0.78))
 
-            Button(AppStrings.SignUp.signIn) {
-                onSignIn()
+            Button(AppStrings.LogIn.footerActionTitle) {
+                onCreateAccount()
             }
                 .font(AppFonts.Body.bold(14))
                 .foregroundStyle(AppColors.primary)
@@ -227,7 +180,6 @@ private extension SignUpView {
                         .foregroundStyle(AppColors.onBackground)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
-                        .keyboardType(title == AppStrings.SignUp.email ? .emailAddress : .default)
                 }
 
                 if let trailingSystemImage {
@@ -283,75 +235,15 @@ private extension SignUpView {
 
     var usernameError: String? {
         guard attemptedSubmit || !username.isEmpty else { return nil }
-        return username.count >= 4 ? nil : "Username must be at least 4 characters"
+        return username.count >= 4 ? nil : AppStrings.LogIn.invalidUsernameMessage
     }
 
-    var emailError: String? {
-        guard attemptedSubmit || !email.isEmpty else { return nil }
-        return email.contains("@") && email.contains(".") ? nil : "Enter a valid email address"
-    }
-
-    var confirmPasswordError: String? {
-        guard attemptedSubmit || !confirmPassword.isEmpty else { return nil }
-        return confirmPassword == password && !confirmPassword.isEmpty ? nil : "Passwords do not match"
-    }
-
-    var confirmPasswordTrailingIcon: String? {
-        if let _ = confirmPasswordError {
-            return "exclamationmark.arrow.trianglehead.counterclockwise.rotate.90"
-        }
-
-        if !confirmPassword.isEmpty && confirmPassword == password {
-            return "checkmark.circle"
-        }
-
-        return nil
-    }
-
-    var confirmPasswordTrailingColor: Color {
-        confirmPasswordError == nil ? AppColors.primary : AppColors.error
-    }
-
-    var passwordStrength: PasswordStrength {
-        PasswordStrength(password: password)
-    }
-}
-
-private struct PasswordStrength {
-    let level: Int
-    let label: String
-    let color: Color
-
-    init(password: String) {
-        let checks = [
-            password.count >= 8,
-            password.rangeOfCharacter(from: .uppercaseLetters) != nil,
-            password.rangeOfCharacter(from: .decimalDigits) != nil,
-            password.rangeOfCharacter(from: CharacterSet.punctuationCharacters.union(.symbols)) != nil
-        ]
-
-        level = max(checks.filter { $0 }.count, password.isEmpty ? 0 : 1)
-
-        switch level {
-        case 4:
-            label = "STRONG"
-            color = AppColors.success
-        case 3:
-            label = "GOOD"
-            color = AppColors.primary
-        case 2:
-            label = "FAIR"
-            color = Color(hex: "#F0D36A")
-        case 1:
-            label = "WEAK"
-            color = AppColors.error
-        default:
-            label = "EMPTY"
-            color = AppColors.surfaceBright
-        }
+    var passwordError: String? {
+        guard attemptedSubmit || !password.isEmpty else { return nil }
+        return password.count >= 8 ? nil : AppStrings.LogIn.invalidPasswordMessage
     }
 }
 
 #Preview {
-    SignUpView()
+    LogInView()
 }
