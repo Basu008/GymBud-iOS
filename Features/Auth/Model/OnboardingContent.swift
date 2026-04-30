@@ -16,7 +16,6 @@ struct OnboardingContent {
     let primaryButtonTitle: String
     let secondaryButtonTitle: String
     let footerVersion: String
-    let backgroundImageName: String
 
     static let mock = OnboardingContent(
         appName: AppStrings.Onboarding.appName,
@@ -26,7 +25,6 @@ struct OnboardingContent {
         subtitle: AppStrings.Onboarding.subtitle,
         primaryButtonTitle: AppStrings.Onboarding.getStarted,
         secondaryButtonTitle: AppStrings.Onboarding.signIn,
-                footerVersion: AppStrings.Onboarding.versionText,
-        backgroundImageName: AppImages.onboardingBackground,
+        footerVersion: AppStrings.Onboarding.versionText
     )
 }

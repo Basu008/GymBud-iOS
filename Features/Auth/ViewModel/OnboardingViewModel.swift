@@ -13,9 +13,14 @@ final class OnboardingViewModel: ObservableObject {
 
     private let authService: AuthServiceProtocol
 
+    init() {
+        self.content = .mock
+        self.authService = AuthService()
+    }
+
     init(
-        content: OnboardingContent = .mock,
-        authService: AuthServiceProtocol = AuthService()
+        content: OnboardingContent,
+        authService: AuthServiceProtocol
     ) {
         self.content = content
         self.authService = authService

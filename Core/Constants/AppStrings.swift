@@ -27,8 +27,12 @@ enum AppStrings{
         static let password = "CREATE PASSWORD"
         static let confirmPassword = "CONFIRM PASSWORD"
         static let createAccount = "CREATE ACCOUNT"
+        static let creatingAccount = "CREATING ACCOUNT"
+        static let accountCreated = "ACCOUNT CREATED"
         static let existingAccount = "Already have an account?"
         static let signIn = "LOG IN"
+        static let successMessage = "Account created successfully."
+        static let genericErrorMessage = "Unable to create account. Please try again."
     }
 
     enum LogIn {

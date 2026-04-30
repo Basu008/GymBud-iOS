@@ -27,26 +27,7 @@ struct OnboardingView: View {
             let contentWidth = min(max(safeWidth - 48, 0), 340)
 
             ZStack {
-                Color.black
-                    .ignoresSafeArea()
-
-                Image(viewModel.content.backgroundImageName)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: safeWidth, height: safeHeight)
-                    .clipped()
-                    .ignoresSafeArea()
-
-                LinearGradient(
-                    colors: [
-                        Color.black.opacity(0.82),
-                        Color.black.opacity(0.55),
-                        Color.black.opacity(0.90)
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .ignoresSafeArea()
+                onboardingBackground
 
                 VStack(spacing: 0) {
                     Spacer()
@@ -75,6 +56,23 @@ struct OnboardingView: View {
 }
 
 private extension OnboardingView {
+    var onboardingBackground: some View {
+        ZStack {
+            AppColors.background
+
+            LinearGradient(
+                colors: [
+                    Color.black,
+                    Color.black.opacity(0.96),
+                    Color.black
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        }
+        .ignoresSafeArea()
+    }
+
     var topBrandSection: some View {
         VStack(spacing: 10) {
             Text(viewModel.content.appName)

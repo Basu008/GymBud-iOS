@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct SignUpView: View {
+    @StateObject private var viewModel: SignUpViewModel
     @State private var username = ""
     @State private var email = ""
     @State private var password = ""
@@ -15,7 +16,9 @@ struct SignUpView: View {
     @State private var attemptedSubmit = false
     let onSignIn: () -> Void
 
+    @MainActor
     init(onSignIn: @escaping () -> Void = {}) {
+        _viewModel = StateObject(wrappedValue: SignUpViewModel())
         self.onSignIn = onSignIn
     }
 
@@ -29,41 +32,35 @@ struct SignUpView: View {
 
                 heroBackground(height: min(max(safeHeight * 0.28, 0), 220))
 
-                LinearGradient(
-                    colors: [
-                        Color.black.opacity(0.1),
-                        Color.black.opacity(0.48),
-                        AppColors.background,
-                        AppColors.background
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .ignoresSafeArea()
-
-                VStack(alignment: .leading, spacing: 0) {
-                    titleSection
-                        .padding(.top, 24)
-                        .padding(.horizontal, 24)
-
-                    formSection
-                        .padding(.top, 18)
-                        .padding(.horizontal, 24)
-
-                    Spacer(minLength: 24)
-
-                    VStack(spacing: 14) {
-                        createAccountButton
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        titleSection
+                            .padding(.top, 24)
                             .padding(.horizontal, 24)
 
-                        footer
-                            .frame(maxWidth: .infinity)
+                        formSection
+                            .padding(.top, 18)
+                            .padding(.horizontal, 24)
+
+                        Spacer(minLength: 24)
+
+                        VStack(spacing: 14) {
+                            createAccountButton
+                                .padding(.horizontal, 24)
+
+                            footer
+                                .frame(maxWidth: .infinity)
+                        }
+                        .padding(.top, 10)
+                        .padding(.bottom, 36)
                     }
-                    .padding(.bottom, 36)
+                    .frame(maxWidth: .infinity, minHeight: safeHeight, alignment: .topLeading)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .scrollIndicators(.hidden)
+                .scrollDismissesKeyboard(.interactively)
             }
         }
+        .navigationBarBackButtonHidden(true)
     }
 }
 
@@ -95,6 +92,8 @@ private extension SignUpView {
                 trailingSystemImage: usernameError == nil ? nil : "exclamationmark.circle",
                 trailingColor: AppColors.error,
                 isSecure: false,
+                keyboardType: .asciiCapable,
+                textContentType: .username,
                 errorMessage: usernameError
             )
 
@@ -106,6 +105,8 @@ private extension SignUpView {
                 trailingSystemImage: emailError == nil ? nil : "at.circle",
                 trailingColor: AppColors.error,
                 isSecure: false,
+                keyboardType: .emailAddress,
+                textContentType: .emailAddress,
                 errorMessage: emailError
             )
 
@@ -118,7 +119,9 @@ private extension SignUpView {
                     trailingSystemImage: "eye.slash",
                     trailingColor: AppColors.primary,
                     isSecure: true,
-                    errorMessage: nil
+                    keyboardType: .asciiCapable,
+                    textContentType: .newPassword,
+                    errorMessage: passwordError
                 )
 
                 HStack(spacing: 8) {
@@ -151,16 +154,48 @@ private extension SignUpView {
                 trailingSystemImage: confirmPasswordTrailingIcon,
                 trailingColor: confirmPasswordTrailingColor,
                 isSecure: true,
+                keyboardType: .asciiCapable,
+                textContentType: .newPassword,
                 errorMessage: confirmPasswordError
             )
+
+            if let errorMessage = viewModel.errorMessage {
+                Text(errorMessage)
+                    .font(AppFonts.Body.medium(12))
+                    .foregroundStyle(AppColors.error)
+                    .padding(.leading, 8)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            if let successMessage = viewModel.successMessage {
+                Text(successMessage)
+                    .font(AppFonts.Body.medium(12))
+                    .foregroundStyle(AppColors.success)
+                    .padding(.leading, 8)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 
     var createAccountButton: some View {
         Button {
             attemptedSubmit = true
+            guard isFormValid else { return }
+
+            Task {
+                await viewModel.signUp(
+                    username: username,
+                    password: password,
+                    email: email
+                )
+
+                guard viewModel.didSignUp else { return }
+
+                try? await Task.sleep(for: .seconds(1))
+                onSignIn()
+            }
         } label: {
-            Text(AppStrings.SignUp.createAccount)
+            Text(createAccountButtonTitle)
                 .font(AppFonts.Headline.bold(18))
                 .foregroundStyle(Color.black.opacity(0.78))
                 .frame(maxWidth: .infinity)
@@ -176,6 +211,8 @@ private extension SignUpView {
                 .shadow(color: AppColors.primary.opacity(0.22), radius: 18, x: 0, y: 10)
         }
         .buttonStyle(.plain)
+        .disabled(viewModel.isLoading)
+        .opacity(viewModel.isLoading ? 0.72 : 1)
     }
 
     var footer: some View {
@@ -201,6 +238,8 @@ private extension SignUpView {
         trailingSystemImage: String?,
         trailingColor: Color,
         isSecure: Bool,
+        keyboardType: UIKeyboardType,
+        textContentType: UITextContentType?,
         errorMessage: String?
     ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -221,13 +260,17 @@ private extension SignUpView {
                         .font(AppFonts.Body.semibold(16))
                         .foregroundStyle(AppColors.onBackground)
                         .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .keyboardType(keyboardType)
+                        .textContentType(textContentType)
                 } else {
                     TextField("", text: text, prompt: Text(prompt).foregroundStyle(AppColors.onSurfaceVariant.opacity(0.45)))
                         .font(AppFonts.Body.semibold(16))
                         .foregroundStyle(AppColors.onBackground)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
-                        .keyboardType(title == AppStrings.SignUp.email ? .emailAddress : .default)
+                        .keyboardType(keyboardType)
+                        .textContentType(textContentType)
                 }
 
                 if let trailingSystemImage {
@@ -256,24 +299,17 @@ private extension SignUpView {
     }
 
     func heroBackground(height: CGFloat) -> some View {
-        Image(AppImages.onboardingBackground)
-            .resizable()
-            .scaledToFill()
-            .frame(maxWidth: .infinity)
-            .frame(height: height)
-            .clipped()
-            .overlay(
-                LinearGradient(
-                    colors: [
-                        Color.black.opacity(0.15),
-                        Color.black.opacity(0.46),
-                        AppColors.background.opacity(0.95)
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            )
-            .ignoresSafeArea(edges: .top)
+        LinearGradient(
+            colors: [
+                Color.black,
+                AppColors.background
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        .frame(maxWidth: .infinity)
+        .frame(height: height)
+        .ignoresSafeArea(edges: .top)
     }
 
     func sanitizedDimension(_ value: CGFloat) -> CGFloat {
@@ -314,6 +350,30 @@ private extension SignUpView {
 
     var passwordStrength: PasswordStrength {
         PasswordStrength(password: password)
+    }
+
+    var createAccountButtonTitle: String {
+        if viewModel.didSignUp {
+            return AppStrings.SignUp.accountCreated
+        }
+
+        if viewModel.isLoading {
+            return AppStrings.SignUp.creatingAccount
+        }
+
+        return AppStrings.SignUp.createAccount
+    }
+
+    var passwordError: String? {
+        guard attemptedSubmit || !password.isEmpty else { return nil }
+        return password.count >= 8 ? nil : "Password must be at least 8 characters"
+    }
+
+    var isFormValid: Bool {
+        usernameError == nil
+            && emailError == nil
+            && passwordError == nil
+            && confirmPasswordError == nil
     }
 }
 

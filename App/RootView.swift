@@ -29,11 +29,11 @@ struct RootView: View {
                 switch route {
                 case .signUp:
                     SignUpView {
-                        path.append(.logIn)
+                        path = [.logIn]
                     }
                 case .logIn:
                     LogInView {
-                        path.append(.signUp)
+                        path = [.signUp]
                     }
                 }
             }

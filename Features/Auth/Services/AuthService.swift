@@ -7,18 +7,44 @@
 
 import Foundation
 
-protocol AuthServiceProtocol{
-    func startSignupFlow()
-    func startSignInFlow()
+nonisolated protocol AuthServiceProtocol: Sendable {
+    nonisolated func startSignupFlow()
+    nonisolated func startSignInFlow()
+    nonisolated func signUp(username: String, password: String, email: String) async throws -> Bool
 }
 
-final class AuthService: AuthServiceProtocol {
-    func startSignupFlow() {
+nonisolated final class AuthService: Sendable {
+    private let apiClient: any APIClientProtocol
+
+    nonisolated init() {
+        self.apiClient = APIClient()
+    }
+
+    nonisolated init(apiClient: any APIClientProtocol) {
+        self.apiClient = apiClient
+    }
+
+    nonisolated func startSignupFlow() {
         // Hook navigation or analytics later
     }
 
-    func startSignInFlow() {
+    nonisolated func startSignInFlow() {
         // Hook navigation or analytics later
+    }
+
+    nonisolated func signUp(username: String, password: String, email: String) async throws -> Bool {
+        let request = SignUpRequest(
+            username: username,
+            password: password,
+            email: email
+        )
+        let response = try await apiClient.request(
+            AuthEndpoint.signUp(request),
+            responseType: APIResponse<Bool>.self
+        )
+
+        return response.success && response.payload
     }
 }
 
+nonisolated extension AuthService: AuthServiceProtocol {}

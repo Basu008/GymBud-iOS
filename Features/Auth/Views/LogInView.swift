@@ -27,41 +27,35 @@ struct LogInView: View {
 
                 heroBackground(height: min(max(safeHeight * 0.28, 0), 220))
 
-                LinearGradient(
-                    colors: [
-                        Color.black.opacity(0.1),
-                        Color.black.opacity(0.48),
-                        AppColors.background,
-                        AppColors.background
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .ignoresSafeArea()
-
-                VStack(alignment: .leading, spacing: 0) {
-                    titleSection
-                        .padding(.top, 24)
-                        .padding(.horizontal, 24)
-
-                    formSection
-                        .padding(.top, 18)
-                        .padding(.horizontal, 24)
-
-                    Spacer(minLength: 24)
-
-                    VStack(spacing: 14) {
-                        primaryButton
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        titleSection
+                            .padding(.top, 24)
                             .padding(.horizontal, 24)
 
-                        footer
-                            .frame(maxWidth: .infinity)
+                        formSection
+                            .padding(.top, 18)
+                            .padding(.horizontal, 24)
+
+                        Spacer(minLength: 24)
+
+                        VStack(spacing: 14) {
+                            primaryButton
+                                .padding(.horizontal, 24)
+
+                            footer
+                                .frame(maxWidth: .infinity)
+                        }
+                        .padding(.top, 10)
+                        .padding(.bottom, 36)
                     }
-                    .padding(.bottom, 36)
+                    .frame(maxWidth: .infinity, minHeight: safeHeight, alignment: .topLeading)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .scrollIndicators(.hidden)
+                .scrollDismissesKeyboard(.interactively)
             }
         }
+        .navigationBarBackButtonHidden(true)
     }
 }
 
@@ -93,6 +87,8 @@ private extension LogInView {
                 trailingSystemImage: usernameError == nil ? nil : "exclamationmark.circle",
                 trailingColor: AppColors.error,
                 isSecure: false,
+                keyboardType: .asciiCapable,
+                textContentType: .username,
                 errorMessage: usernameError
             )
 
@@ -104,6 +100,8 @@ private extension LogInView {
                 trailingSystemImage: passwordError == nil ? "eye.slash" : "exclamationmark.circle",
                 trailingColor: passwordError == nil ? AppColors.primary : AppColors.error,
                 isSecure: true,
+                keyboardType: .asciiCapable,
+                textContentType: .password,
                 errorMessage: passwordError
             )
         }
@@ -154,6 +152,8 @@ private extension LogInView {
         trailingSystemImage: String?,
         trailingColor: Color,
         isSecure: Bool,
+        keyboardType: UIKeyboardType,
+        textContentType: UITextContentType?,
         errorMessage: String?
     ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -174,12 +174,17 @@ private extension LogInView {
                         .font(AppFonts.Body.semibold(16))
                         .foregroundStyle(AppColors.onBackground)
                         .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .keyboardType(keyboardType)
+                        .textContentType(textContentType)
                 } else {
                     TextField("", text: text, prompt: Text(prompt).foregroundStyle(AppColors.onSurfaceVariant.opacity(0.45)))
                         .font(AppFonts.Body.semibold(16))
                         .foregroundStyle(AppColors.onBackground)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
+                        .keyboardType(keyboardType)
+                        .textContentType(textContentType)
                 }
 
                 if let trailingSystemImage {
@@ -208,24 +213,17 @@ private extension LogInView {
     }
 
     func heroBackground(height: CGFloat) -> some View {
-        Image(AppImages.onboardingBackground)
-            .resizable()
-            .scaledToFill()
-            .frame(maxWidth: .infinity)
-            .frame(height: height)
-            .clipped()
-            .overlay(
-                LinearGradient(
-                    colors: [
-                        Color.black.opacity(0.15),
-                        Color.black.opacity(0.46),
-                        AppColors.background.opacity(0.95)
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            )
-            .ignoresSafeArea(edges: .top)
+        LinearGradient(
+            colors: [
+                Color.black,
+                AppColors.background
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        .frame(maxWidth: .infinity)
+        .frame(height: height)
+        .ignoresSafeArea(edges: .top)
     }
 
     func sanitizedDimension(_ value: CGFloat) -> CGFloat {
