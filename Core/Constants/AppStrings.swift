@@ -48,4 +48,18 @@ enum AppStrings{
         static let invalidUsernameMessage = "username is invalid"
         static let invalidPasswordMessage = "incorrect password"
     }
+
+    enum UserInfo {
+        static let titlePrefix = "BEFORE WE"
+        static let titleHighlight = "START..."
+        static let fullName = "FULL NAME"
+        static let fullNamePlaceholder = "ALEX RIVERA"
+        static let age = "AGE"
+        static let agePlaceholder = "24"
+        static let genderIdentity = "GENDER IDENTITY"
+        static let kineticMetrics = "KINETIC METRICS"
+        static let height = "HEIGHT (CM)"
+        static let weight = "WEIGHT"
+        static let saveChanges = "SAVE CHANGES"
+    }
 }
