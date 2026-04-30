@@ -8,6 +8,7 @@
 import Foundation
 
 nonisolated protocol AuthTokenStoreProtocol: Sendable {
+    nonisolated var accessToken: String? { get }
     nonisolated func saveAccessToken(_ token: String)
 }
 
@@ -17,6 +18,10 @@ nonisolated final class AuthTokenStore: AuthTokenStoreProtocol, @unchecked Senda
 
     nonisolated init(userDefaults: UserDefaults = .standard) {
         self.userDefaults = userDefaults
+    }
+
+    nonisolated var accessToken: String? {
+        userDefaults.string(forKey: accessTokenKey)
     }
 
     nonisolated func saveAccessToken(_ token: String) {

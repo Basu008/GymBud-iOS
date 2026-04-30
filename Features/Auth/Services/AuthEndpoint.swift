@@ -10,6 +10,7 @@ import Foundation
 nonisolated enum AuthEndpoint: Sendable {
     case signUp(SignUpRequest)
     case logIn(LogInRequest)
+    case currentUser(accessToken: String)
 }
 
 nonisolated extension AuthEndpoint: APIEndpoint {
@@ -19,6 +20,8 @@ nonisolated extension AuthEndpoint: APIEndpoint {
             return "auth/signup"
         case .logIn:
             return "auth/login"
+        case .currentUser:
+            return "users/me"
         }
     }
 
@@ -26,6 +29,8 @@ nonisolated extension AuthEndpoint: APIEndpoint {
         switch self {
         case .signUp, .logIn:
             return .post
+        case .currentUser:
+            return .get
         }
     }
 
@@ -33,6 +38,8 @@ nonisolated extension AuthEndpoint: APIEndpoint {
         switch self {
         case .signUp, .logIn:
             return ["Content-Type": "application/json"]
+        case .currentUser(let accessToken):
+            return ["Authorization": "Bearer \(accessToken)"]
         }
     }
 
@@ -42,6 +49,8 @@ nonisolated extension AuthEndpoint: APIEndpoint {
             return try? JSONEncoder().encode(request)
         case .logIn(let request):
             return try? JSONEncoder().encode(request)
+        case .currentUser:
+            return nil
         }
     }
 }

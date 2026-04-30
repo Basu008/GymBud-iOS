@@ -13,11 +13,11 @@ struct UserInfoView: View {
     @State private var fullName = ""
     @State private var age = "24"
     @State private var selectedGender: GenderIdentity = .male
-    @State private var selectedUnit: MeasurementUnit = .kilograms
     @State private var height = "182"
     @State private var weight = "84.5"
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var profileImage: Image?
+    @State private var attemptedSave = false
 
     let onSave: () -> Void
 
@@ -175,54 +175,35 @@ private extension UserInfoView {
 
             HStack {
                 fieldLabel(AppStrings.UserInfo.kineticMetrics)
-
-                Spacer()
-
-                unitToggle
             }
             .padding(.top, 30)
 
-            VStack(spacing: 14) {
-                metricCard(
+            VStack(spacing: 12) {
+                metricField(
                     eyebrow: AppStrings.UserInfo.height,
                     value: $height,
                     unit: "CM",
-                    iconName: "ruler"
+                    iconName: "ruler",
+                    errorMessage: heightError
                 )
 
-                metricCard(
-                    eyebrow: "\(AppStrings.UserInfo.weight) (\(selectedUnit.rawValue))",
+                metricField(
+                    eyebrow: "\(AppStrings.UserInfo.weight) (KG)",
                     value: $weight,
-                    unit: selectedUnit.rawValue,
-                    iconName: "scalemass"
+                    unit: "KG",
+                    iconName: "scalemass",
+                    errorMessage: weightError
                 )
             }
         }
-    }
-
-    var unitToggle: some View {
-        HStack(spacing: 4) {
-            ForEach(MeasurementUnit.allCases) { unit in
-                Button {
-                    selectedUnit = unit
-                } label: {
-                    Text(unit.rawValue)
-                        .font(AppFonts.Body.bold(9))
-                        .foregroundStyle(selectedUnit == unit ? AppColors.primary : AppColors.onSurfaceVariant.opacity(0.72))
-                        .frame(width: 32, height: 22)
-                        .background(selectedUnit == unit ? AppColors.surfaceBright : Color.clear)
-                        .clipShape(Capsule())
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(3)
-        .background(AppColors.surfaceVariant.opacity(0.52))
-        .clipShape(Capsule())
     }
 
     var saveButton: some View {
-        Button(action: onSave) {
+        Button {
+            attemptedSave = true
+            guard isKineticMetricsValid else { return }
+            onSave()
+        } label: {
             HStack(spacing: 10) {
                 Text(AppStrings.UserInfo.saveChanges)
                     .font(AppFonts.Headline.bold(14))
@@ -304,7 +285,39 @@ private extension UserInfoView {
         .buttonStyle(.plain)
     }
 
-    func metricCard(eyebrow: String, value: Binding<String>, unit: String, iconName: String) -> some View {
+    func metricField(
+        eyebrow: String,
+        value: Binding<String>,
+        unit: String,
+        iconName: String,
+        errorMessage: String?
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            metricCard(
+                eyebrow: eyebrow,
+                value: value,
+                unit: unit,
+                iconName: iconName,
+                hasError: errorMessage != nil
+            )
+
+            if let errorMessage {
+                Text(errorMessage)
+                    .font(AppFonts.Body.medium(12))
+                    .foregroundStyle(AppColors.error)
+                    .padding(.leading, 8)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    func metricCard(
+        eyebrow: String,
+        value: Binding<String>,
+        unit: String,
+        iconName: String,
+        hasError: Bool
+    ) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(eyebrow)
                 .font(AppFonts.Body.bold(9))
@@ -325,12 +338,16 @@ private extension UserInfoView {
 
                 Image(systemName: iconName)
                     .font(.system(size: 19, weight: .semibold))
-                    .foregroundStyle(AppColors.outlineVariant.opacity(0.64))
+                    .foregroundStyle(hasError ? AppColors.error.opacity(0.82) : AppColors.outlineVariant.opacity(0.64))
             }
         }
         .padding(.horizontal, 16)
         .frame(height: 106)
         .background(AppColors.surfaceVariant.opacity(0.88))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(hasError ? AppColors.error.opacity(0.42) : Color.clear, lineWidth: 1)
+        )
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 
@@ -358,6 +375,38 @@ private extension UserInfoView {
         guard value.isFinite else { return 0 }
         return max(value, 0)
     }
+
+    var heightError: String? {
+        guard attemptedSave || !height.isEmpty else { return nil }
+        guard let value = decimalValue(from: height),
+              value >= 54.6,
+              value <= 272
+        else {
+            return AppStrings.UserInfo.invalidHeightMessage
+        }
+
+        return nil
+    }
+
+    var weightError: String? {
+        guard attemptedSave || !weight.isEmpty else { return nil }
+        guard let value = decimalValue(from: weight),
+              value >= 20,
+              value <= 635
+        else {
+            return AppStrings.UserInfo.invalidWeightMessage
+        }
+
+        return nil
+    }
+
+    var isKineticMetricsValid: Bool {
+        heightError == nil && weightError == nil
+    }
+
+    func decimalValue(from text: String) -> Double? {
+        Double(text.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: ",", with: "."))
+    }
 }
 
 private enum GenderIdentity: CaseIterable {
@@ -372,13 +421,6 @@ private enum GenderIdentity: CaseIterable {
             return "♀"
         }
     }
-}
-
-private enum MeasurementUnit: String, CaseIterable, Identifiable {
-    case kilograms = "KG"
-    case pounds = "LB"
-
-    var id: String { rawValue }
 }
 
 #Preview {

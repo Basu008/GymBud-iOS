@@ -63,5 +63,7 @@ enum AppStrings{
         static let height = "HEIGHT (CM)"
         static let weight = "WEIGHT"
         static let saveChanges = "SAVE CHANGES"
+        static let invalidHeightMessage = "Height must be between 54.6 cm and 272 cm"
+        static let invalidWeightMessage = "Weight must be between 20 kg and 635 kg"
     }
 }
