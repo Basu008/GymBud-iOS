@@ -11,17 +11,24 @@ nonisolated protocol AuthServiceProtocol: Sendable {
     nonisolated func startSignupFlow()
     nonisolated func startSignInFlow()
     nonisolated func signUp(username: String, password: String, email: String) async throws -> Bool
+    nonisolated func logIn(username: String, password: String) async throws -> LogInResponse
 }
 
 nonisolated final class AuthService: Sendable {
     private let apiClient: any APIClientProtocol
+    private let tokenStore: any AuthTokenStoreProtocol
 
     nonisolated init() {
         self.apiClient = APIClient()
+        self.tokenStore = AuthTokenStore()
     }
 
-    nonisolated init(apiClient: any APIClientProtocol) {
+    nonisolated init(
+        apiClient: any APIClientProtocol,
+        tokenStore: any AuthTokenStoreProtocol = AuthTokenStore()
+    ) {
         self.apiClient = apiClient
+        self.tokenStore = tokenStore
     }
 
     nonisolated func startSignupFlow() {
@@ -45,6 +52,25 @@ nonisolated final class AuthService: Sendable {
 
         return response.success && response.payload
     }
+
+    nonisolated func logIn(username: String, password: String) async throws -> LogInResponse {
+        let request = LogInRequest(username: username, password: password)
+        let response = try await apiClient.request(
+            AuthEndpoint.logIn(request),
+            responseType: APIResponse<LogInResponse>.self
+        )
+
+        guard response.success else {
+            throw AuthServiceError.unsuccessfulResponse
+        }
+
+        tokenStore.saveAccessToken(response.payload.accessToken)
+        return response.payload
+    }
 }
 
 nonisolated extension AuthService: AuthServiceProtocol {}
+
+nonisolated enum AuthServiceError: Error, Sendable {
+    case unsuccessfulResponse
+}

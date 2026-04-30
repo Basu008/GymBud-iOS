@@ -47,6 +47,8 @@ enum AppStrings{
         static let footerActionTitle = "CREATE ACCOUNT"
         static let invalidUsernameMessage = "username is invalid"
         static let invalidPasswordMessage = "incorrect password"
+        static let loadingButtonTitle = "LOGGING IN"
+        static let genericErrorMessage = "Unable to log in. Please check your credentials."
     }
 
     enum UserInfo {

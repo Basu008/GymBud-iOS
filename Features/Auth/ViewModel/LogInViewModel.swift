@@ -1,0 +1,52 @@
+//
+//  LogInViewModel.swift
+//  GymBud
+//
+//  Created by Codex on 01/05/26.
+//
+
+import Combine
+import Foundation
+
+@MainActor
+final class LogInViewModel: ObservableObject {
+    @Published private(set) var isLoading = false
+    @Published private(set) var didLogIn = false
+    @Published private(set) var needsUserInfo = false
+    @Published var errorMessage: String?
+
+    private let authService: any AuthServiceProtocol
+
+    init() {
+        self.authService = AuthService()
+    }
+
+    init(authService: any AuthServiceProtocol) {
+        self.authService = authService
+    }
+
+    func logIn(username: String, password: String) async {
+        guard !isLoading else { return }
+
+        isLoading = true
+        didLogIn = false
+        needsUserInfo = false
+        errorMessage = nil
+
+        defer {
+            isLoading = false
+        }
+
+        do {
+            let response = try await authService.logIn(
+                username: username,
+                password: password
+            )
+
+            didLogIn = true
+            needsUserInfo = response.user.needsUserInfo
+        } catch {
+            errorMessage = AppStrings.LogIn.genericErrorMessage
+        }
+    }
+}

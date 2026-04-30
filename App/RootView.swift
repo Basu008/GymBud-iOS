@@ -11,6 +11,7 @@ struct RootView: View {
     private enum Route: Hashable {
         case signUp
         case logIn
+        case userInfo
     }
 
     @State private var path: [Route] = []
@@ -32,8 +33,20 @@ struct RootView: View {
                         path = [.logIn]
                     }
                 case .logIn:
-                    LogInView {
-                        path = [.signUp]
+                    LogInView(
+                        onCreateAccount: {
+                            path = [.signUp]
+                        },
+                        onNeedsUserInfo: {
+                            path.append(.userInfo)
+                        },
+                        onLogInComplete: {
+                            path.removeAll()
+                        }
+                    )
+                case .userInfo:
+                    UserInfoView {
+                        path.removeAll()
                     }
                 }
             }

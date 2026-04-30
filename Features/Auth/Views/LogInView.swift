@@ -8,13 +8,24 @@
 import SwiftUI
 
 struct LogInView: View {
+    @StateObject private var viewModel: LogInViewModel
     @State private var username = ""
     @State private var password = ""
     @State private var attemptedSubmit = false
     let onCreateAccount: () -> Void
+    let onNeedsUserInfo: () -> Void
+    let onLogInComplete: () -> Void
 
-    init(onCreateAccount: @escaping () -> Void = {}) {
+    @MainActor
+    init(
+        onCreateAccount: @escaping () -> Void = {},
+        onNeedsUserInfo: @escaping () -> Void = {},
+        onLogInComplete: @escaping () -> Void = {}
+    ) {
+        _viewModel = StateObject(wrappedValue: LogInViewModel())
         self.onCreateAccount = onCreateAccount
+        self.onNeedsUserInfo = onNeedsUserInfo
+        self.onLogInComplete = onLogInComplete
     }
 
     var body: some View {
@@ -104,14 +115,35 @@ private extension LogInView {
                 textContentType: .password,
                 errorMessage: passwordError
             )
+
+            if let errorMessage = viewModel.errorMessage {
+                Text(errorMessage)
+                    .font(AppFonts.Body.medium(12))
+                    .foregroundStyle(AppColors.error)
+                    .padding(.leading, 8)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 
     var primaryButton: some View {
         Button {
             attemptedSubmit = true
+            guard usernameError == nil && passwordError == nil else { return }
+
+            Task {
+                await viewModel.logIn(username: username, password: password)
+
+                guard viewModel.didLogIn else { return }
+
+                if viewModel.needsUserInfo {
+                    onNeedsUserInfo()
+                } else {
+                    onLogInComplete()
+                }
+            }
         } label: {
-            Text(AppStrings.LogIn.primaryButtonTitle)
+            Text(logInButtonTitle)
                 .font(AppFonts.Headline.bold(18))
                 .foregroundStyle(Color.black.opacity(0.78))
                 .frame(maxWidth: .infinity)
@@ -127,6 +159,8 @@ private extension LogInView {
                 .shadow(color: AppColors.primary.opacity(0.22), radius: 18, x: 0, y: 10)
         }
         .buttonStyle(.plain)
+        .disabled(viewModel.isLoading)
+        .opacity(viewModel.isLoading ? 0.72 : 1)
     }
 
     var footer: some View {
@@ -239,6 +273,10 @@ private extension LogInView {
     var passwordError: String? {
         guard attemptedSubmit || !password.isEmpty else { return nil }
         return password.count >= 8 ? nil : AppStrings.LogIn.invalidPasswordMessage
+    }
+
+    var logInButtonTitle: String {
+        viewModel.isLoading ? AppStrings.LogIn.loadingButtonTitle : AppStrings.LogIn.primaryButtonTitle
     }
 }
 
