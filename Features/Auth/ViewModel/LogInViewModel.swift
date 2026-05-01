@@ -43,6 +43,7 @@ final class LogInViewModel: ObservableObject {
                 password: password
             )
 
+            CurrentUserStore.shared.update(user: response.user)
             didLogIn = true
             needsUserInfo = response.user.needsUserInfo
         } catch {

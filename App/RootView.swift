@@ -107,6 +107,7 @@ private extension RootView {
 
         do {
             let user = try await userService.currentUser(accessToken: accessToken)
+            CurrentUserStore.shared.update(user: user)
 
             if user.needsUserInfo {
                 appDestination = .userInfo
@@ -114,6 +115,7 @@ private extension RootView {
                 appDestination = .home
             }
         } catch {
+            CurrentUserStore.shared.clear()
             path.removeAll()
             appDestination = .onboarding
         }

@@ -5,7 +5,9 @@
 //  Created by Codex on 01/05/26.
 //
 
+import Combine
 import Foundation
+import UIKit
 
 nonisolated protocol UserServiceProtocol: Sendable {
     nonisolated func storedAccessToken() -> String?
@@ -88,4 +90,118 @@ nonisolated extension UserService: UserServiceProtocol {}
 nonisolated enum UserServiceError: Error, Sendable {
     case unsuccessfulResponse
     case unsupportedGender
+}
+
+@MainActor
+final class CurrentUserStore: ObservableObject {
+    static let shared = CurrentUserStore()
+
+    @Published private(set) var user: AuthenticatedUser?
+    @Published private(set) var profileImage: UIImage?
+
+    private var loadedProfileImageURL: URL?
+    private var profileImageLoadTask: Task<Void, Never>?
+
+    private init() {}
+
+    func update(user: AuthenticatedUser) {
+        self.user = user
+        loadProfileImageIfNeeded(from: user.profileImageURL)
+    }
+
+    func setProfileImage(data: Data, profileImageURL: String?) {
+        guard let profileImageURL,
+              let url = URL(string: profileImageURL),
+              let image = UIImage(data: data)
+        else {
+            return
+        }
+
+        profileImageLoadTask?.cancel()
+        loadedProfileImageURL = url
+        profileImage = image
+        cacheProfileImageData(data, for: url)
+    }
+
+    func clear() {
+        profileImageLoadTask?.cancel()
+        profileImageLoadTask = nil
+        user = nil
+        profileImage = nil
+        loadedProfileImageURL = nil
+    }
+
+    private func loadProfileImageIfNeeded(from profileImageURL: String?) {
+        guard let profileImageURL,
+              let url = URL(string: profileImageURL)
+        else {
+            profileImageLoadTask?.cancel()
+            profileImageLoadTask = nil
+            profileImage = nil
+            loadedProfileImageURL = nil
+            return
+        }
+
+        guard loadedProfileImageURL != url || profileImage == nil else {
+            return
+        }
+
+        profileImageLoadTask?.cancel()
+        loadedProfileImageURL = url
+
+        if let cachedImage = cachedProfileImage(for: url) {
+            profileImage = cachedImage
+            return
+        }
+
+        profileImage = nil
+        profileImageLoadTask = Task {
+            do {
+                let (data, _) = try await URLSession.shared.data(from: url)
+                guard !Task.isCancelled,
+                      let image = UIImage(data: data)
+                else {
+                    return
+                }
+
+                cacheProfileImageData(data, for: url)
+                self.profileImage = image
+            } catch {
+                guard !Task.isCancelled else { return }
+                self.profileImage = nil
+            }
+        }
+    }
+
+    private func cachedProfileImage(for url: URL) -> UIImage? {
+        guard let data = try? Data(contentsOf: cacheURL(for: url)) else {
+            return nil
+        }
+
+        return UIImage(data: data)
+    }
+
+    private func cacheProfileImageData(_ data: Data, for url: URL) {
+        let directory = cacheDirectory
+        try? FileManager.default.createDirectory(
+            at: directory,
+            withIntermediateDirectories: true
+        )
+        try? data.write(to: cacheURL(for: url), options: [.atomic])
+    }
+
+    private func cacheURL(for url: URL) -> URL {
+        let filename = Data(url.absoluteString.utf8)
+            .base64EncodedString()
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "=", with: "")
+
+        return cacheDirectory.appendingPathComponent("\(filename).jpg")
+    }
+
+    private var cacheDirectory: URL {
+        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("ProfileImages", isDirectory: true)
+    }
 }

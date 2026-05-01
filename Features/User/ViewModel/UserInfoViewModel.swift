@@ -60,6 +60,10 @@ final class UserInfoViewModel: ObservableObject {
                     profileImageData,
                     accessToken: accessToken
                 )
+                CurrentUserStore.shared.setProfileImage(
+                    data: profileImageData,
+                    profileImageURL: profileImageURL
+                )
             } else {
                 profileImageURL = nil
             }
@@ -77,6 +81,9 @@ final class UserInfoViewModel: ObservableObject {
                 weightKG: weightKG,
                 accessToken: accessToken
             )
+
+            let user = try await userService.currentUser(accessToken: accessToken)
+            CurrentUserStore.shared.update(user: user)
 
             return true
         } catch {

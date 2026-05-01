@@ -6,10 +6,22 @@
 //
 
 import SwiftUI
+import UIKit
+
 
 struct HomeView: View {
     @State private var selectedTab: HomeTab = .home
+    @ObservedObject private var currentUserStore: CurrentUserStore
     private let feedItems: [FeedActivity]? = nil
+
+    @MainActor
+    init() {
+        self.currentUserStore = CurrentUserStore.shared
+    }
+
+    init(currentUserStore: CurrentUserStore) {
+        self.currentUserStore = currentUserStore
+    }
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -30,7 +42,10 @@ struct HomeView: View {
     private var selectedContent: some View {
         switch selectedTab {
         case .home:
-            HomeFeedView(feedItems: feedItems)
+            HomeFeedView(
+                feedItems: feedItems,
+                profileImage: currentUserStore.profileImage
+            )
         case .workout:
             WorkoutView()
         case .routine:
@@ -41,6 +56,7 @@ struct HomeView: View {
             ProfileView()
         }
     }
+
 }
 
 private struct FeedActivity: Identifiable {
@@ -57,25 +73,18 @@ private struct FeedActivity: Identifiable {
 
 private struct HomeFeedView: View {
     let feedItems: [FeedActivity]?
+    let profileImage: UIImage?
 
     var body: some View {
         GeometryReader { geometry in
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    HomeHeaderView()
+                    HomeHeaderView(profileImage: profileImage)
                         .padding(.top, 18)
 
-                    HStack(alignment: .firstTextBaseline) {
-                        Text("SOCIAL FEED")
-                            .font(AppFonts.Headline.bold(25))
-                            .foregroundStyle(AppColors.onBackground)
-
-                        Spacer()
-
-                        Text("LATEST ACTIVITY")
-                            .font(AppFonts.Body.bold(8))
-                            .foregroundStyle(AppColors.onSurfaceVariant.opacity(0.78))
-                    }
+                    Text("SOCIAL FEED")
+                        .font(AppFonts.Headline.bold(25))
+                        .foregroundStyle(AppColors.onBackground)
                     .padding(.top, 12)
 
                     if let feedItems {
@@ -141,9 +150,11 @@ private struct PlaceholderSectionView: View {
 }
 
 private struct HomeHeaderView: View {
+    let profileImage: UIImage?
+
     var body: some View {
         HStack(spacing: 9) {
-            UserAvatarView(size: 29)
+            UserAvatarView(size: 29, image: profileImage)
 
             Text("GYMBUD")
                 .font(AppFonts.Headline.bold(15))
@@ -392,6 +403,7 @@ private struct BottomNavigationItemView: View {
 
 private struct UserAvatarView: View {
     let size: CGFloat
+    var image: UIImage? = nil
 
     var body: some View {
         ZStack {
@@ -408,9 +420,17 @@ private struct UserAvatarView: View {
                     )
                 )
 
-            Image(systemName: "person.fill")
-                .font(.system(size: size * 0.48, weight: .semibold))
-                .foregroundStyle(AppColors.onBackground.opacity(0.86))
+            if let image {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                .frame(width: size, height: size)
+                .clipShape(Circle())
+            } else {
+                Image(systemName: "person.fill")
+                    .font(.system(size: size * 0.48, weight: .semibold))
+                    .foregroundStyle(AppColors.onBackground.opacity(0.86))
+            }
         }
         .frame(width: size, height: size)
         .overlay(

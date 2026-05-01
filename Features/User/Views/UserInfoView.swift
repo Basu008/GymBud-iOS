@@ -425,8 +425,51 @@ private extension UserInfoView {
             return
         }
 
-        profileImage = Image(uiImage: uiImage)
-        profileImageData = uiImage.jpegData(compressionQuality: 0.86)
+        let compressedImageData = compressedProfileImageData(from: uiImage)
+        profileImage = compressedImageData
+            .flatMap(UIImage.init(data:))
+            .map(Image.init(uiImage:)) ?? Image(uiImage: uiImage)
+        profileImageData = compressedImageData
+    }
+
+    func compressedProfileImageData(from image: UIImage) -> Data? {
+        let maxByteCount = 1_000_000
+        let maxInitialDimension: CGFloat = 1_024
+        var workingImage = image.resizedToFit(maxDimension: maxInitialDimension)
+
+        for _ in 0..<4 {
+            var quality: CGFloat = 0.86
+
+            while quality >= 0.42 {
+                if let data = workingImage.jpegData(compressionQuality: quality),
+                   data.count <= maxByteCount {
+                    return data
+                }
+
+                quality -= 0.12
+            }
+
+            let nextDimension = max(workingImage.longestSide * 0.78, 320)
+            guard nextDimension < workingImage.longestSide else { break }
+            workingImage = workingImage.resizedToFit(maxDimension: nextDimension)
+        }
+
+        var fallbackQuality: CGFloat = 0.38
+        while let data = workingImage.jpegData(compressionQuality: fallbackQuality) {
+            if data.count <= maxByteCount {
+                return data
+            }
+
+            if fallbackQuality > 0.24 {
+                fallbackQuality -= 0.06
+            } else if workingImage.longestSide > 120 {
+                workingImage = workingImage.resizedToFit(maxDimension: workingImage.longestSide * 0.72)
+            } else {
+                return data
+            }
+        }
+
+        return nil
     }
 
     func sanitizedDimension(_ value: CGFloat) -> CGFloat {
@@ -505,6 +548,28 @@ private enum UserInfoField: Hashable {
     case fullName
     case height
     case weight
+}
+
+private extension UIImage {
+    var longestSide: CGFloat {
+        max(size.width, size.height)
+    }
+
+    func resizedToFit(maxDimension: CGFloat) -> UIImage {
+        guard longestSide > maxDimension else { return self }
+
+        let scale = maxDimension / longestSide
+        let targetSize = CGSize(
+            width: size.width * scale,
+            height: size.height * scale
+        )
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+
+        return UIGraphicsImageRenderer(size: targetSize, format: format).image { _ in
+            draw(in: CGRect(origin: .zero, size: targetSize))
+        }
+    }
 }
 
 private enum GenderIdentity: CaseIterable {
