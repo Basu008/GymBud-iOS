@@ -12,7 +12,8 @@ nonisolated protocol ExerciseReferenceServiceProtocol: Sendable {
     nonisolated func muscles() async throws -> [ExerciseReferenceOption]
     nonisolated func equipments() async throws -> [ExerciseReferenceOption]
     nonisolated func difficulties() async throws -> [ExerciseReferenceOption]
-    nonisolated func createExercise(_ request: CreateExerciseRequest) async throws -> CustomExercise
+    nonisolated func exercises(category: String?, name: String?, accessToken: String) async throws -> [Exercise]
+    nonisolated func createExercise(_ request: CreateExerciseRequest, accessToken: String) async throws -> Exercise
 }
 
 nonisolated final class ExerciseReferenceService: Sendable {
@@ -38,9 +39,26 @@ nonisolated final class ExerciseReferenceService: Sendable {
         try await referenceOptions(from: .difficulty)
     }
 
-    nonisolated func createExercise(_ request: CreateExerciseRequest) async throws -> CustomExercise {
+    nonisolated func exercises(category: String?, name: String?, accessToken: String) async throws -> [Exercise] {
+        let data = try await apiClient.request(
+            ExerciseReferenceEndpoint.exercises(category: category, name: name, accessToken: accessToken)
+        )
+        let decoder = JSONDecoder()
+
+        if let response = try? decoder.decode(APIResponse<ExercisesPayload>.self, from: data) {
+            return try response.requirePayload().exercises
+        }
+
+        if let payload = try? decoder.decode(ExercisesPayload.self, from: data) {
+            return payload.exercises
+        }
+
+        return try decoder.decode([Exercise].self, from: data)
+    }
+
+    nonisolated func createExercise(_ request: CreateExerciseRequest, accessToken: String) async throws -> Exercise {
         let response = try await apiClient.request(
-            ExerciseReferenceEndpoint.create(request),
+            ExerciseReferenceEndpoint.create(request, accessToken: accessToken),
             responseType: APIResponse<CreateExercisePayload>.self
         )
 

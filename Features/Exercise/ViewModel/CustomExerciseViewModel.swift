@@ -16,7 +16,7 @@ final class CustomExerciseViewModel: ObservableObject {
     @Published private(set) var difficulties: [ExerciseReferenceOption] = []
     @Published private(set) var isLoading = false
     @Published private(set) var isSaving = false
-    @Published private(set) var createdExercise: CustomExercise?
+    @Published private(set) var createdExercise: Exercise?
     @Published var errorMessage: String?
     @Published var successMessage: String?
 
@@ -28,10 +28,17 @@ final class CustomExerciseViewModel: ObservableObject {
     @Published var selectedDifficulty: ExerciseReferenceOption?
     @Published var movementMode = ""
 
-    private let service: any ExerciseReferenceServiceProtocol
+    let movementModeOptions = ["", "unilateral", "bilateral"]
 
-    init(service: any ExerciseReferenceServiceProtocol = ExerciseReferenceService()) {
+    private let service: any ExerciseReferenceServiceProtocol
+    private let authTokenStore: any AuthTokenStoreProtocol
+
+    init(
+        service: any ExerciseReferenceServiceProtocol = ExerciseReferenceService(),
+        authTokenStore: any AuthTokenStoreProtocol = AuthTokenStore()
+    ) {
         self.service = service
+        self.authTokenStore = authTokenStore
     }
 
     func loadReferenceData() async {
@@ -77,6 +84,15 @@ final class CustomExerciseViewModel: ObservableObject {
             return
         }
 
+        guard let accessToken = authTokenStore.accessToken,
+              !accessToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        else {
+            errorMessage = "Please log in again to save exercises."
+            successMessage = nil
+            Self.log("Skipped create exercise because no auth token is stored.")
+            return
+        }
+
         isSaving = true
         errorMessage = nil
         successMessage = nil
@@ -86,9 +102,12 @@ final class CustomExerciseViewModel: ObservableObject {
         }
 
         do {
-            createdExercise = try await service.createExercise(request)
+            Self.log("Creating exercise name=\(request.name) movementMode=\(request.movementMode.isEmpty ? "<empty>" : request.movementMode) tokenPresent=true")
+            createdExercise = try await service.createExercise(request, accessToken: accessToken)
             successMessage = "Exercise saved."
+            Self.log("Created exercise id=\(createdExercise?.id ?? "<missing>")")
         } catch {
+            Self.log("Create exercise failed: \(error.localizedDescription)")
             errorMessage = "Unable to save exercise."
         }
     }
@@ -132,9 +151,20 @@ final class CustomExerciseViewModel: ObservableObject {
             category: selectedCategory.name,
             equipment: selectedEquipment.name,
             primaryMuscle: selectedPrimaryMuscle.name,
-            secondaryMuscles: selectedSecondaryMuscles.map(\.name).joined(separator: ", "),
+            secondaryMuscles: selectedSecondaryMuscles.map(\.name),
             difficulty: selectedDifficulty.name,
-            movementMode: movementMode.trimmingCharacters(in: .whitespacesAndNewlines)
+            movementMode: normalizedMovementMode
         )
+    }
+
+    private var normalizedMovementMode: String {
+        let mode = movementMode.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return movementModeOptions.contains(mode) ? mode : ""
+    }
+
+    private static func log(_ message: String) {
+        #if DEBUG
+        print("[CustomExerciseViewModel] \(message)")
+        #endif
     }
 }

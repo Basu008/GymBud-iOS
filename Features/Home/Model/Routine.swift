@@ -47,34 +47,6 @@ nonisolated struct RoutineExercise: Identifiable, Decodable, Sendable {
     }
 }
 
-nonisolated struct Exercise: Identifiable, Decodable, Sendable {
-    let id: String
-    let name: String
-    let category: String
-    let equipment: String
-    let movementMode: String
-    let primaryMuscle: String
-    let secondaryMuscles: [String]
-    let difficulty: String
-    let isActive: Bool
-    let createdAt: String
-    let updatedAt: String
-
-    enum CodingKeys: String, CodingKey {
-        case id
-        case name
-        case category
-        case equipment
-        case movementMode = "movement_mode"
-        case primaryMuscle = "primary_muscle"
-        case secondaryMuscles = "secondary_muscles"
-        case difficulty
-        case isActive = "is_active"
-        case createdAt = "created_at"
-        case updatedAt = "updated_at"
-    }
-}
-
 nonisolated struct RoutineSet: Identifiable, Decodable, Sendable {
     let id: String
     let routineExerciseID: String
@@ -141,10 +113,10 @@ private extension Exercise {
             name: "Exercise \(index + 1)",
             category: "",
             equipment: "",
-            movementMode: "",
             primaryMuscle: "",
             secondaryMuscles: [],
             difficulty: "",
+            movementMode: "",
             isActive: true,
             createdAt: "",
             updatedAt: ""

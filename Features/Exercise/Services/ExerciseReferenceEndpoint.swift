@@ -12,7 +12,8 @@ nonisolated enum ExerciseReferenceEndpoint: Sendable {
     case muscles
     case equipments
     case difficulty
-    case create(CreateExerciseRequest)
+    case exercises(category: String?, name: String?, accessToken: String)
+    case create(CreateExerciseRequest, accessToken: String)
 }
 
 nonisolated extension ExerciseReferenceEndpoint: APIEndpoint {
@@ -26,6 +27,8 @@ nonisolated extension ExerciseReferenceEndpoint: APIEndpoint {
             return "exercises/equipments"
         case .difficulty:
             return "exercises/difficulty"
+        case .exercises:
+            return "exercises"
         case .create:
             return "exercises"
         }
@@ -33,10 +36,22 @@ nonisolated extension ExerciseReferenceEndpoint: APIEndpoint {
 
     nonisolated var method: HTTPMethod {
         switch self {
-        case .categories, .muscles, .equipments, .difficulty:
+        case .categories, .muscles, .equipments, .difficulty, .exercises:
             return .get
         case .create:
             return .post
+        }
+    }
+
+    nonisolated var queryItems: [URLQueryItem] {
+        switch self {
+        case .exercises(let category, let name, _):
+            return [
+                Self.queryItem(name: "category", value: category),
+                Self.queryItem(name: "name", value: name)
+            ].compactMap { $0 }
+        case .categories, .muscles, .equipments, .difficulty, .create:
+            return []
         }
     }
 
@@ -44,17 +59,32 @@ nonisolated extension ExerciseReferenceEndpoint: APIEndpoint {
         switch self {
         case .categories, .muscles, .equipments, .difficulty:
             return [:]
-        case .create:
-            return ["Content-Type": "application/json"]
+        case .exercises(_, _, let accessToken):
+            return ["Authorization": "Bearer \(accessToken)"]
+        case .create(_, let accessToken):
+            return [
+                "Authorization": "Bearer \(accessToken)",
+                "Content-Type": "application/json"
+            ]
         }
     }
 
     nonisolated var body: Data? {
         switch self {
-        case .categories, .muscles, .equipments, .difficulty:
+        case .categories, .muscles, .equipments, .difficulty, .exercises:
             return nil
-        case .create(let request):
+        case .create(let request, _):
             return try? JSONEncoder().encode(request)
         }
+    }
+
+    private static func queryItem(name: String, value: String?) -> URLQueryItem? {
+        guard let value = value?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !value.isEmpty
+        else {
+            return nil
+        }
+
+        return URLQueryItem(name: name, value: value.lowercased())
     }
 }

@@ -9,6 +9,6 @@ import SwiftUI
 
 struct WorkoutView: View {
     var body: some View {
-        PlaceholderSectionView(title: "WORKOUT")
+        ExercisesView()
     }
 }

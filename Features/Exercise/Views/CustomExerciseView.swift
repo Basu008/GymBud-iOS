@@ -5,11 +5,17 @@
 //  Created by Codex on 01/05/26.
 //
 
+import Combine
 import SwiftUI
 
 struct CustomExerciseView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel = CustomExerciseViewModel()
+    private let onExerciseSaved: (Exercise) -> Void
+
+    init(onExerciseSaved: @escaping (Exercise) -> Void = { _ in }) {
+        self.onExerciseSaved = onExerciseSaved
+    }
 
     var body: some View {
         ZStack {
@@ -56,6 +62,10 @@ struct CustomExerciseView: View {
         .navigationBarBackButtonHidden(true)
         .task {
             await viewModel.loadReferenceData()
+        }
+        .onReceive(viewModel.$createdExercise.compactMap { $0 }) { exercise in
+            onExerciseSaved(exercise)
+            dismiss()
         }
     }
 
@@ -189,11 +199,9 @@ struct CustomExerciseView: View {
                     )
                 }
 
-                CustomExerciseTextField(
-                    title: "MOVEMENT MODE (OPTIONAL)",
-                    placeholder: "e.g. Explosive, Tempo",
-                    text: $viewModel.movementMode,
-                    trailingSystemName: "brain.head.profile"
+                CustomExerciseMovementModeField(
+                    value: $viewModel.movementMode,
+                    options: viewModel.movementModeOptions
                 )
             }
         }
@@ -332,6 +340,45 @@ private struct CustomExercisePickerField: View {
             }
             .disabled(options.isEmpty)
         }
+    }
+}
+
+private struct CustomExerciseMovementModeField: View {
+    @Binding var value: String
+    let options: [String]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            CustomExerciseLabel("MOVEMENT MODE (OPTIONAL)")
+
+            Menu {
+                ForEach(options, id: \.self) { option in
+                    Button(displayName(for: option)) {
+                        value = option
+                    }
+                }
+            } label: {
+                HStack {
+                    Text(displayName(for: value))
+                        .font(AppFonts.Body.bold(13))
+                        .foregroundStyle(value.isEmpty ? AppColors.onSurfaceVariant.opacity(0.76) : AppColors.onBackground)
+
+                    Spacer()
+
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(AppColors.onSurfaceVariant.opacity(0.82))
+                }
+                .padding(.horizontal, 16)
+                .frame(height: 54)
+                .background(AppColors.surfaceBright.opacity(0.36))
+                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+            }
+        }
+    }
+
+    private func displayName(for option: String) -> String {
+        option.isEmpty ? "None" : option.capitalized
     }
 }
 
