@@ -10,18 +10,32 @@ import SwiftUI
 import UIKit
 
 struct UserInfoView: View {
+    @StateObject private var viewModel: UserInfoViewModel
     @State private var fullName = ""
-    @State private var age = "24"
+    @State private var dateOfBirth = Calendar.current.date(from: DateComponents(year: 1990, month: 10, day: 5)) ?? Date()
     @State private var selectedGender: GenderIdentity = .male
     @State private var height = "182"
     @State private var weight = "84.5"
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var profileImage: Image?
+    @State private var profileImageData: Data?
     @State private var attemptedSave = false
+    @FocusState private var focusedField: UserInfoField?
 
     let onSave: () -> Void
 
+    @MainActor
     init(onSave: @escaping () -> Void = {}) {
+        _viewModel = StateObject(wrappedValue: UserInfoViewModel())
+        self.onSave = onSave
+    }
+
+    @MainActor
+    init(
+        viewModel: UserInfoViewModel,
+        onSave: @escaping () -> Void = {}
+    ) {
+        _viewModel = StateObject(wrappedValue: viewModel)
         self.onSave = onSave
     }
 
@@ -35,19 +49,19 @@ struct UserInfoView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) {
                         titleSection
-                            .padding(.top, 78)
+                            .padding(.top, 42)
 
                         avatarPicker
                             .frame(maxWidth: .infinity)
-                            .padding(.top, 50)
+                            .padding(.top, 22)
 
                         formSection
-                            .padding(.top, 48)
+                            .padding(.top, 28)
 
-                        Spacer(minLength: 44)
+                        Spacer(minLength: 20)
 
                         saveButton
-                            .padding(.bottom, 24)
+                            .padding(.bottom, 16)
                     }
                     .padding(.horizontal, 24)
                     .frame(maxWidth: .infinity, minHeight: safeHeight, alignment: .topLeading)
@@ -59,6 +73,15 @@ struct UserInfoView: View {
         .navigationBarBackButtonHidden(true)
         .task(id: selectedPhotoItem) {
             await loadSelectedPhoto()
+        }
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+
+                Button(AppStrings.UserInfo.keyboardDone) {
+                    focusedField = nil
+                }
+            }
         }
     }
 }
@@ -95,11 +118,11 @@ private extension UserInfoView {
     var titleSection: some View {
         VStack(alignment: .leading, spacing: -3) {
             Text(AppStrings.UserInfo.titlePrefix)
-                .font(AppFonts.Headline.bold(30))
+                .font(AppFonts.Headline.bold(28))
                 .foregroundStyle(AppColors.onBackground)
 
             Text(AppStrings.UserInfo.titleHighlight)
-                .font(AppFonts.Headline.bold(30).italic())
+                .font(AppFonts.Headline.bold(28).italic())
                 .foregroundStyle(AppColors.primary)
         }
         .shadow(color: AppColors.onBackground.opacity(0.12), radius: 1, x: 1, y: 0)
@@ -111,7 +134,7 @@ private extension UserInfoView {
                 ZStack {
                     Circle()
                         .fill(AppColors.surfaceVariant.opacity(0.72))
-                        .frame(width: 94, height: 94)
+                        .frame(width: 78, height: 78)
                         .overlay(
                             Circle()
                                 .stroke(AppColors.outlineVariant.opacity(0.24), lineWidth: 2)
@@ -121,11 +144,11 @@ private extension UserInfoView {
                         profileImage
                             .resizable()
                             .scaledToFill()
-                            .frame(width: 94, height: 94)
+                            .frame(width: 78, height: 78)
                             .clipShape(Circle())
                     } else {
                         Image(systemName: "person")
-                            .font(.system(size: 33, weight: .medium))
+                            .font(.system(size: 29, weight: .medium))
                             .foregroundStyle(AppColors.outlineVariant.opacity(0.48))
                     }
                 }
@@ -133,7 +156,7 @@ private extension UserInfoView {
                 Image(systemName: "camera.fill")
                     .font(.system(size: 13, weight: .bold))
                     .foregroundStyle(AppColors.background)
-                    .frame(width: 26, height: 26)
+                    .frame(width: 24, height: 24)
                     .background(AppColors.primary)
                     .clipShape(Circle())
                     .overlay(
@@ -147,21 +170,18 @@ private extension UserInfoView {
     }
 
     var formSection: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        VStack(alignment: .leading, spacing: 12) {
             labeledTextField(
                 title: AppStrings.UserInfo.fullName,
                 text: $fullName,
                 prompt: AppStrings.UserInfo.fullNamePlaceholder,
                 keyboardType: .default,
-                textContentType: .name
+                textContentType: .name,
+                focusedField: .fullName
             )
 
             HStack(alignment: .top, spacing: 10) {
-                labeledCompactField(
-                    title: AppStrings.UserInfo.age,
-                    text: $age,
-                    prompt: AppStrings.UserInfo.agePlaceholder
-                )
+                dateOfBirthField
 
                 VStack(alignment: .leading, spacing: 8) {
                     fieldLabel(AppStrings.UserInfo.genderIdentity)
@@ -176,14 +196,15 @@ private extension UserInfoView {
             HStack {
                 fieldLabel(AppStrings.UserInfo.kineticMetrics)
             }
-            .padding(.top, 30)
+            .padding(.top, 12)
 
-            VStack(spacing: 12) {
+            VStack(spacing: 8) {
                 metricField(
                     eyebrow: AppStrings.UserInfo.height,
                     value: $height,
                     unit: "CM",
                     iconName: "ruler",
+                    focusedField: .height,
                     errorMessage: heightError
                 )
 
@@ -192,28 +213,55 @@ private extension UserInfoView {
                     value: $weight,
                     unit: "KG",
                     iconName: "scalemass",
+                    focusedField: .weight,
                     errorMessage: weightError
                 )
             }
         }
     }
 
+    var dateOfBirthField: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            fieldLabel(AppStrings.UserInfo.dateOfBirth)
+
+            DatePicker(
+                "",
+                selection: $dateOfBirth,
+                in: ...Date(),
+                displayedComponents: .date
+            )
+            .labelsHidden()
+            .datePickerStyle(.compact)
+            .tint(AppColors.primary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 12)
+            .frame(height: 50)
+            .background(AppColors.surfaceVariant.opacity(0.88))
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        }
+    }
+
     var saveButton: some View {
         Button {
-            attemptedSave = true
-            guard isKineticMetricsValid else { return }
-            onSave()
+            Task {
+                await saveUserInfo()
+            }
         } label: {
             HStack(spacing: 10) {
-                Text(AppStrings.UserInfo.saveChanges)
+                Text(viewModel.isSaving ? AppStrings.UserInfo.savingChanges : AppStrings.UserInfo.saveChanges)
                     .font(AppFonts.Headline.bold(14))
 
-                Image(systemName: "arrow.right")
-                    .font(.system(size: 13, weight: .bold))
+                if viewModel.isSaving {
+                    ProgressView()
+                        .tint(Color.black.opacity(0.72))
+                } else {
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 13, weight: .bold))
+                }
             }
             .foregroundStyle(Color.black.opacity(0.72))
             .frame(maxWidth: .infinity)
-            .frame(height: 64)
+            .frame(height: 56)
             .background(
                 LinearGradient(
                     colors: [AppColors.primary, AppColors.primaryFixed],
@@ -224,7 +272,18 @@ private extension UserInfoView {
             .clipShape(Capsule())
             .shadow(color: AppColors.primaryFixed.opacity(0.24), radius: 18, x: 0, y: 8)
         }
+        .disabled(viewModel.isSaving)
         .buttonStyle(.plain)
+        .overlay(alignment: .top) {
+            if let errorMessage = viewModel.errorMessage {
+                Text(errorMessage)
+                    .font(AppFonts.Body.medium(12))
+                    .foregroundStyle(AppColors.error)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .offset(y: -32)
+            }
+        }
     }
 
     func labeledTextField(
@@ -232,7 +291,8 @@ private extension UserInfoView {
         text: Binding<String>,
         prompt: String,
         keyboardType: UIKeyboardType,
-        textContentType: UITextContentType?
+        textContentType: UITextContentType?,
+        focusedField: UserInfoField
     ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             fieldLabel(title)
@@ -244,24 +304,13 @@ private extension UserInfoView {
                 .autocorrectionDisabled()
                 .keyboardType(keyboardType)
                 .textContentType(textContentType)
+                .focused($focusedField, equals: focusedField)
+                .submitLabel(.done)
+                .onSubmit {
+                    self.focusedField = nil
+                }
                 .padding(.horizontal, 16)
-                .frame(height: 62)
-                .background(AppColors.surfaceVariant.opacity(0.88))
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-        }
-    }
-
-    func labeledCompactField(title: String, text: Binding<String>, prompt: String) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            fieldLabel(title)
-
-            TextField("", text: text, prompt: Text(prompt).foregroundStyle(AppColors.onSurfaceVariant.opacity(0.7)))
-                .font(AppFonts.Body.bold(17))
-                .foregroundStyle(AppColors.onBackground)
-                .keyboardType(.numberPad)
-                .padding(.horizontal, 14)
                 .frame(height: 54)
-                .frame(maxWidth: .infinity, alignment: .leading)
                 .background(AppColors.surfaceVariant.opacity(0.88))
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
@@ -274,7 +323,7 @@ private extension UserInfoView {
             Text(gender.symbol)
                 .font(.system(size: 22, weight: .semibold))
                 .foregroundStyle(selectedGender == gender ? AppColors.primary : AppColors.onSurfaceVariant.opacity(0.72))
-                .frame(width: 72, height: 54)
+                .frame(width: 68, height: 50)
                 .background(AppColors.surfaceVariant.opacity(0.88))
                 .overlay(
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -290,14 +339,16 @@ private extension UserInfoView {
         value: Binding<String>,
         unit: String,
         iconName: String,
+        focusedField: UserInfoField,
         errorMessage: String?
     ) -> some View {
-        VStack(alignment: .leading, spacing: 7) {
+        VStack(alignment: .leading, spacing: 5) {
             metricCard(
                 eyebrow: eyebrow,
                 value: value,
                 unit: unit,
                 iconName: iconName,
+                focusedField: focusedField,
                 hasError: errorMessage != nil
             )
 
@@ -316,19 +367,25 @@ private extension UserInfoView {
         value: Binding<String>,
         unit: String,
         iconName: String,
+        focusedField: UserInfoField,
         hasError: Bool
     ) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 6) {
             Text(eyebrow)
                 .font(AppFonts.Body.bold(9))
                 .foregroundStyle(AppColors.onSurfaceVariant.opacity(0.72))
 
             HStack(alignment: .firstTextBaseline, spacing: 12) {
                 TextField("", text: value)
-                    .font(AppFonts.Headline.bold(40))
+                    .font(AppFonts.Headline.bold(32))
                     .foregroundStyle(AppColors.onBackground)
                     .keyboardType(.decimalPad)
-                    .frame(width: 112)
+                    .focused($focusedField, equals: focusedField)
+                    .submitLabel(.done)
+                    .onSubmit {
+                        self.focusedField = nil
+                    }
+                    .frame(width: 104)
 
                 Text(unit)
                     .font(AppFonts.Headline.bold(15))
@@ -342,7 +399,7 @@ private extension UserInfoView {
             }
         }
         .padding(.horizontal, 16)
-        .frame(height: 106)
+        .frame(height: 82)
         .background(AppColors.surfaceVariant.opacity(0.88))
         .overlay(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -369,6 +426,7 @@ private extension UserInfoView {
         }
 
         profileImage = Image(uiImage: uiImage)
+        profileImageData = uiImage.jpegData(compressionQuality: 0.86)
     }
 
     func sanitizedDimension(_ value: CGFloat) -> CGFloat {
@@ -404,9 +462,49 @@ private extension UserInfoView {
         heightError == nil && weightError == nil
     }
 
+    @MainActor
+    func saveUserInfo() async {
+        attemptedSave = true
+        viewModel.errorMessage = nil
+
+        guard isKineticMetricsValid,
+              let heightValue = decimalValue(from: height),
+              let weightValue = decimalValue(from: weight)
+        else {
+            return
+        }
+
+        let didSave = await viewModel.saveUserInfo(
+            displayName: fullName,
+            gender: selectedGender.apiValue,
+            dateOfBirth: formattedDateOfBirth,
+            heightCM: heightValue,
+            weightKG: weightValue,
+            profileImageData: profileImageData
+        )
+
+        if didSave {
+            onSave()
+        }
+    }
+
+    var formattedDateOfBirth: String {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: dateOfBirth)
+    }
+
     func decimalValue(from text: String) -> Double? {
         Double(text.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: ",", with: "."))
     }
+}
+
+private enum UserInfoField: Hashable {
+    case fullName
+    case height
+    case weight
 }
 
 private enum GenderIdentity: CaseIterable {
@@ -419,6 +517,15 @@ private enum GenderIdentity: CaseIterable {
             return "♂"
         case .female:
             return "♀"
+        }
+    }
+
+    var apiValue: String {
+        switch self {
+        case .male:
+            return "M"
+        case .female:
+            return "F"
         }
     }
 }

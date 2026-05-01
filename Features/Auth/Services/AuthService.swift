@@ -13,7 +13,6 @@ nonisolated protocol AuthServiceProtocol: Sendable {
     nonisolated func signUp(username: String, password: String, email: String) async throws -> Bool
     nonisolated func logIn(username: String, password: String) async throws -> LogInResponse
     nonisolated func storedAccessToken() -> String?
-    nonisolated func currentUser(accessToken: String) async throws -> AuthenticatedUser
 }
 
 nonisolated final class AuthService: Sendable {
@@ -52,7 +51,7 @@ nonisolated final class AuthService: Sendable {
             responseType: APIResponse<Bool>.self
         )
 
-        return response.success && response.payload
+        return try response.requirePayload()
     }
 
     nonisolated func logIn(username: String, password: String) async throws -> LogInResponse {
@@ -62,30 +61,15 @@ nonisolated final class AuthService: Sendable {
             responseType: APIResponse<LogInResponse>.self
         )
 
-        guard response.success else {
-            throw AuthServiceError.unsuccessfulResponse
-        }
-
-        tokenStore.saveAccessToken(response.payload.accessToken)
-        return response.payload
+        let payload = try response.requirePayload()
+        tokenStore.saveAccessToken(payload.accessToken)
+        return payload
     }
 
     nonisolated func storedAccessToken() -> String? {
         tokenStore.accessToken
     }
 
-    nonisolated func currentUser(accessToken: String) async throws -> AuthenticatedUser {
-        let response = try await apiClient.request(
-            AuthEndpoint.currentUser(accessToken: accessToken),
-            responseType: APIResponse<AuthenticatedUser>.self
-        )
-
-        guard response.success else {
-            throw AuthServiceError.unsuccessfulResponse
-        }
-
-        return response.payload
-    }
 }
 
 nonisolated extension AuthService: AuthServiceProtocol {}

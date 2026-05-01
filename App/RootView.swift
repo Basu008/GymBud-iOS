@@ -24,6 +24,7 @@ struct RootView: View {
     @State private var didCheckStoredSession = false
     @State private var appDestination: AppDestination = .checkingSession
     private let authService: any AuthServiceProtocol = AuthService()
+    private let userService: any UserServiceProtocol = UserService()
 
     var body: some View {
         Group {
@@ -105,7 +106,7 @@ private extension RootView {
         }
 
         do {
-            let user = try await authService.currentUser(accessToken: accessToken)
+            let user = try await userService.currentUser(accessToken: accessToken)
 
             if user.needsUserInfo {
                 appDestination = .userInfo
