@@ -12,7 +12,7 @@ nonisolated protocol ExerciseReferenceServiceProtocol: Sendable {
     nonisolated func muscles() async throws -> [ExerciseReferenceOption]
     nonisolated func equipments() async throws -> [ExerciseReferenceOption]
     nonisolated func difficulties() async throws -> [ExerciseReferenceOption]
-    nonisolated func exercises(category: String?, name: String?, accessToken: String) async throws -> [Exercise]
+    nonisolated func exercises(category: String?, name: String?, page: Int, accessToken: String) async throws -> [Exercise]
     nonisolated func createExercise(_ request: CreateExerciseRequest, accessToken: String) async throws -> Exercise
 }
 
@@ -39,9 +39,9 @@ nonisolated final class ExerciseReferenceService: Sendable {
         try await referenceOptions(from: .difficulty)
     }
 
-    nonisolated func exercises(category: String?, name: String?, accessToken: String) async throws -> [Exercise] {
+    nonisolated func exercises(category: String?, name: String?, page: Int, accessToken: String) async throws -> [Exercise] {
         let data = try await apiClient.request(
-            ExerciseReferenceEndpoint.exercises(category: category, name: name, accessToken: accessToken)
+            ExerciseReferenceEndpoint.exercises(category: category, name: name, page: page, accessToken: accessToken)
         )
         let decoder = JSONDecoder()
 

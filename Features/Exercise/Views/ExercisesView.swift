@@ -8,26 +8,44 @@
 import SwiftUI
 
 struct ExercisesView: View {
-    @StateObject private var viewModel = ExercisesViewModel()
+    @StateObject private var viewModel: ExercisesViewModel
     @State private var isCreatingExercise = false
     @State private var searchTask: Task<Void, Never>?
+    private let onCancel: () -> Void
+    private let onSave: ([Exercise]) -> Void
+
+    init(
+        selectedExercises: [Exercise] = [],
+        onCancel: @escaping () -> Void = {},
+        onSave: @escaping ([Exercise]) -> Void = { _ in }
+    ) {
+        _viewModel = StateObject(wrappedValue: ExercisesViewModel(selectedExercises: selectedExercises))
+        self.onCancel = onCancel
+        self.onSave = onSave
+    }
 
     var body: some View {
         VStack(spacing: 0) {
             header
 
-            ScrollView {
-                VStack(spacing: 22) {
-                    searchField
-                    filters
-                    createExerciseButton
-                    exerciseList
+            GeometryReader { geometry in
+                ScrollView {
+                    VStack(spacing: 22) {
+                        searchField
+                        filters
+                        createExerciseButton
+                        exerciseList
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.top, 18)
+                    .padding(.bottom, 24)
+                    .frame(maxWidth: .infinity, minHeight: geometry.size.height, alignment: .top)
                 }
-                .padding(.horizontal, 14)
-                .padding(.top, 18)
-                .padding(.bottom, 24)
+                .scrollIndicators(.hidden)
+                .refreshable {
+                    await viewModel.loadInitialData()
+                }
             }
-            .scrollIndicators(.hidden)
         }
         .background(AppColors.background.ignoresSafeArea())
         .task {
@@ -54,6 +72,7 @@ struct ExercisesView: View {
     private var header: some View {
         HStack {
             Button {
+                onCancel()
             } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 14, weight: .semibold))
@@ -66,6 +85,7 @@ struct ExercisesView: View {
             Spacer()
 
             Button {
+                onSave(viewModel.selectedExercises)
             } label: {
                 Text("SAVE")
                     .font(AppFonts.Body.bold(11))
@@ -184,6 +204,18 @@ struct ExercisesView: View {
                     ) {
                         viewModel.toggleSelection(for: exercise)
                     }
+                    .onAppear {
+                        Task {
+                            await viewModel.loadMoreExercisesIfNeeded(currentExercise: exercise)
+                        }
+                    }
+                }
+
+                if viewModel.isLoadingMore {
+                    ProgressView()
+                        .tint(AppColors.primary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
                 }
             }
         }
@@ -227,15 +259,15 @@ private struct ExerciseRow: View {
     let onToggleSelection: () -> Void
 
     private var accentColor: Color {
-        switch exercise.primaryMuscle?.lowercased() {
-        case let muscle where muscle?.contains("chest") == true:
-            return AppColors.primary
-        case let muscle where muscle?.contains("back") == true:
-            return AppColors.secondary
-        case let muscle where muscle?.contains("leg") == true || muscle?.contains("hamstring") == true:
+        switch exercise.difficulty?.lowercased() {
+        case "beginner":
+            return AppColors.success
+        case "intermediate":
             return Color(hex: "#FFD92F")
-        default:
+        case "advanced":
             return AppColors.error
+        default:
+            return AppColors.onSurfaceVariant
         }
     }
 

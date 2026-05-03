@@ -7,6 +7,53 @@
 
 import Foundation
 
+nonisolated struct CreateRoutineRequest: Encodable, Sendable {
+    let name: String
+    let exercises: [CreateRoutineExerciseRequest]
+}
+
+nonisolated struct CreateRoutineExerciseRequest: Encodable, Sendable {
+    let exerciseID: String
+    let orderIndex: Int
+    let sets: [CreateRoutineSetRequest]
+
+    enum CodingKeys: String, CodingKey {
+        case exerciseID = "exercise_id"
+        case orderIndex = "order_index"
+        case sets
+    }
+}
+
+nonisolated struct CreateRoutineSetRequest: Encodable, Sendable {
+    let setNumber: Int
+    let minReps: Int
+    let maxReps: Int
+    let targetWeightKG: Double
+
+    enum CodingKeys: String, CodingKey {
+        case setNumber = "set_number"
+        case minReps = "min_reps"
+        case maxReps = "max_reps"
+        case targetWeightKG = "target_weight_kg"
+    }
+}
+
+nonisolated struct CreateRoutinePayload: Decodable, Sendable {
+    let routine: Routine
+}
+
+nonisolated struct UpdateRoutinePayload: Decodable, Sendable {
+    let routine: Routine
+}
+
+nonisolated struct DeleteRoutinePayload: Decodable, Sendable {
+    let deletedID: String
+
+    enum CodingKeys: String, CodingKey {
+        case deletedID = "deleted_id"
+    }
+}
+
 nonisolated struct Routine: Identifiable, Decodable, Sendable {
     let id: String
     let userID: String

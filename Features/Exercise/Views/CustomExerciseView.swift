@@ -208,40 +208,15 @@ struct CustomExerciseView: View {
     }
 
     private var saveButton: some View {
-        Button {
+        GBPrimaryButton(
+            title: "SAVE EXERCISE",
+            isLoading: viewModel.isSaving,
+            isDisabled: viewModel.isSaving
+        ) {
             Task {
                 await viewModel.saveExercise()
             }
-        } label: {
-            HStack(spacing: 11) {
-                if viewModel.isSaving {
-                    ProgressView()
-                        .tint(Color.black.opacity(0.78))
-                } else {
-                    Text("SAVE EXERCISE")
-                        .font(AppFonts.Body.bold(14))
-                        .tracking(3.4)
-
-                    Image(systemName: "bolt.fill")
-                        .font(.system(size: 14, weight: .bold))
-                }
-            }
-            .foregroundStyle(Color.black.opacity(0.78))
-            .frame(maxWidth: .infinity)
-            .frame(height: 64)
-            .background(
-                LinearGradient(
-                    colors: [AppColors.primary.opacity(0.96), AppColors.primaryFixed],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-            )
-            .clipShape(Capsule())
-            .shadow(color: AppColors.primaryFixed.opacity(0.18), radius: 20, x: 0, y: 10)
         }
-        .buttonStyle(.plain)
-        .disabled(viewModel.isSaving)
-        .opacity(viewModel.isSaving ? 0.78 : 1)
         .accessibilityLabel("Save exercise")
     }
 }

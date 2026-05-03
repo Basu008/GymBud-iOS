@@ -12,7 +12,7 @@ nonisolated enum ExerciseReferenceEndpoint: Sendable {
     case muscles
     case equipments
     case difficulty
-    case exercises(category: String?, name: String?, accessToken: String)
+    case exercises(category: String?, name: String?, page: Int, accessToken: String)
     case create(CreateExerciseRequest, accessToken: String)
 }
 
@@ -45,10 +45,11 @@ nonisolated extension ExerciseReferenceEndpoint: APIEndpoint {
 
     nonisolated var queryItems: [URLQueryItem] {
         switch self {
-        case .exercises(let category, let name, _):
+        case .exercises(let category, let name, let page, _):
             return [
                 Self.queryItem(name: "category", value: category),
-                Self.queryItem(name: "name", value: name)
+                Self.queryItem(name: "name", value: name),
+                URLQueryItem(name: "page", value: "\(max(page, 1))")
             ].compactMap { $0 }
         case .categories, .muscles, .equipments, .difficulty, .create:
             return []
@@ -59,7 +60,7 @@ nonisolated extension ExerciseReferenceEndpoint: APIEndpoint {
         switch self {
         case .categories, .muscles, .equipments, .difficulty:
             return [:]
-        case .exercises(_, _, let accessToken):
+        case .exercises(_, _, _, let accessToken):
             return ["Authorization": "Bearer \(accessToken)"]
         case .create(_, let accessToken):
             return [

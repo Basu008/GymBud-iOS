@@ -9,38 +9,59 @@ import SwiftUI
 
 struct RoutineView: View {
     @StateObject private var viewModel = RoutineViewModel()
+    @State private var isCreatingRoutine = false
+    @State private var editingRoutine: Routine?
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 22) {
-                GBPrimaryButton(title: "CREATE NEW ROUTINE") {}
-                    .padding(.top, 26)
+        GeometryReader { geometry in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 22) {
+                    GBPrimaryButton(title: "CREATE NEW ROUTINE") {
+                        isCreatingRoutine = true
+                    }
+                        .padding(.top, 26)
 
-                HStack(alignment: .firstTextBaseline) {
-                    Text("ACTIVE LIBRARY")
-                        .font(AppFonts.Body.bold(13))
-                        .tracking(1.2)
-                        .foregroundStyle(AppColors.onSurfaceVariant.opacity(0.78))
+                    HStack(alignment: .firstTextBaseline) {
+                        Text("ACTIVE LIBRARY")
+                            .font(AppFonts.Body.bold(13))
+                            .tracking(1.2)
+                            .foregroundStyle(AppColors.onSurfaceVariant.opacity(0.78))
 
-                    Spacer()
+                        Spacer()
 
-                    Text("\(viewModel.routines.count) Routines")
-                        .font(AppFonts.Body.bold(13))
-                        .foregroundStyle(AppColors.secondary)
+                        Text("\(viewModel.routines.count) Routines")
+                            .font(AppFonts.Body.bold(13))
+                            .foregroundStyle(AppColors.secondary)
+                    }
+                    .padding(.top, 2)
+
+                    routineContent
                 }
-                .padding(.top, 2)
-
-                routineContent
+                .padding(.horizontal, 27)
+                .padding(.bottom, 18)
+                .frame(maxWidth: .infinity, minHeight: geometry.size.height, alignment: .top)
             }
-            .padding(.horizontal, 27)
-            .padding(.bottom, 18)
+            .scrollIndicators(.hidden)
+            .refreshable {
+                await viewModel.loadRoutines()
+            }
         }
-        .scrollIndicators(.hidden)
         .task {
             await viewModel.loadRoutines()
         }
-        .refreshable {
-            await viewModel.loadRoutines()
+        .fullScreenCover(isPresented: $isCreatingRoutine, onDismiss: {
+            Task {
+                await viewModel.loadRoutines()
+            }
+        }) {
+            NewRoutineView()
+        }
+        .fullScreenCover(item: $editingRoutine, onDismiss: {
+            Task {
+                await viewModel.loadRoutines()
+            }
+        }) { routine in
+            EditRoutineView(routine: routine)
         }
     }
 
@@ -71,7 +92,30 @@ struct RoutineView: View {
         } else {
             VStack(spacing: 14) {
                 ForEach(viewModel.routines) { routine in
-                    RoutineCardView(routine: routine)
+                    RoutineCardView(
+                        routine: routine,
+                        isDeleting: viewModel.deletingRoutineIDs.contains(routine.id),
+                        onEdit: {
+                            editingRoutine = routine
+                        },
+                        onDelete: {
+                            Task {
+                                await viewModel.deleteRoutine(routine)
+                            }
+                        }
+                    )
+                        .onAppear {
+                            Task {
+                                await viewModel.loadMoreRoutinesIfNeeded(currentRoutine: routine)
+                            }
+                        }
+                }
+
+                if viewModel.isLoadingMore {
+                    ProgressView()
+                        .tint(AppColors.primary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
                 }
             }
         }
@@ -80,6 +124,9 @@ struct RoutineView: View {
 
 private struct RoutineCardView: View {
     let routine: Routine
+    let isDeleting: Bool
+    let onEdit: () -> Void
+    let onDelete: () -> Void
 
     var body: some View {
         HStack(spacing: 0) {
@@ -104,13 +151,21 @@ private struct RoutineCardView: View {
 
                 Spacer(minLength: 12)
 
-                Button {} label: {
-                    Image(systemName: "trash")
-                        .font(.system(size: 21, weight: .semibold))
-                        .foregroundStyle(AppColors.onSurfaceVariant)
-                        .frame(width: 38, height: 38)
+                Button(action: onDelete) {
+                    Group {
+                        if isDeleting {
+                            ProgressView()
+                                .tint(AppColors.onSurfaceVariant)
+                        } else {
+                            Image(systemName: "trash")
+                                .font(.system(size: 21, weight: .semibold))
+                        }
+                    }
+                    .foregroundStyle(AppColors.onSurfaceVariant)
+                    .frame(width: 38, height: 38)
                 }
                 .buttonStyle(.plain)
+                .disabled(isDeleting)
                 .accessibilityLabel("Delete \(routine.name)")
             }
             .padding(.leading, 23)
@@ -119,6 +174,8 @@ private struct RoutineCardView: View {
         .frame(height: 100)
         .background(AppColors.surfaceVariant.opacity(0.34))
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .onTapGesture(perform: onEdit)
     }
 }
 

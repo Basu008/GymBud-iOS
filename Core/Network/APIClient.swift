@@ -103,7 +103,7 @@ nonisolated final class APIClient: Sendable {
 
     private static func shouldLog(_ endpoint: any APIEndpoint) -> Bool {
         #if DEBUG
-        endpoint is UserEndpoint || endpoint is RoutineEndpoint || endpoint is ExerciseReferenceEndpoint
+        endpoint is UserEndpoint || endpoint is RoutineEndpoint || endpoint is ExerciseReferenceEndpoint || endpoint is WorkoutEndpoint
         #else
         false
         #endif
