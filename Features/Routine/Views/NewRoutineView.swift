@@ -6,12 +6,12 @@
 //
 
 import SwiftUI
+import UIKit
 import UniformTypeIdentifiers
 
 struct NewRoutineView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var routineName = ""
-    @State private var exerciseSearch = ""
     @State private var exercises: [NewRoutineExerciseDraft] = []
     @State private var isSelectingExercises = false
     @State private var isSaving = false
@@ -43,8 +43,6 @@ struct NewRoutineView: View {
                     }
 
                     routineNameField
-
-                    exerciseSearchField
 
                     addExerciseButton
 
@@ -109,6 +107,7 @@ struct NewRoutineView: View {
                 }
             )
         }
+        .routineKeyboardDismissToolbar()
     }
 
     private var header: some View {
@@ -144,23 +143,6 @@ struct NewRoutineView: View {
                 .background(Color.black.opacity(0.16))
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
-    }
-
-    private var exerciseSearchField: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(AppColors.onSurfaceVariant)
-
-            TextField("Search exercises", text: $exerciseSearch)
-                .font(AppFonts.Body.bold(14))
-                .foregroundStyle(AppColors.onBackground)
-                .tint(AppColors.primaryFixed)
-        }
-        .padding(.horizontal, 18)
-        .frame(height: 54)
-        .background(AppColors.surfaceVariant.opacity(0.44))
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 
     private var addExerciseButton: some View {
@@ -308,7 +290,6 @@ struct NewRoutineView: View {
 struct EditRoutineView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var routineName: String
-    @State private var exerciseSearch = ""
     @State private var exercises: [NewRoutineExerciseDraft]
     @State private var isSelectingExercises = false
     @State private var isSaving = false
@@ -349,8 +330,6 @@ struct EditRoutineView: View {
                     }
 
                     routineNameField
-
-                    exerciseSearchField
 
                     addExerciseButton
 
@@ -414,6 +393,7 @@ struct EditRoutineView: View {
                 }
             )
         }
+        .routineKeyboardDismissToolbar()
     }
 
     private var header: some View {
@@ -449,23 +429,6 @@ struct EditRoutineView: View {
                 .background(Color.black.opacity(0.16))
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
-    }
-
-    private var exerciseSearchField: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(AppColors.onSurfaceVariant)
-
-            TextField("Search exercises", text: $exerciseSearch)
-                .font(AppFonts.Body.bold(14))
-                .foregroundStyle(AppColors.onBackground)
-                .tint(AppColors.primaryFixed)
-        }
-        .padding(.horizontal, 18)
-        .frame(height: 54)
-        .background(AppColors.surfaceVariant.opacity(0.44))
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 
     private var addExerciseButton: some View {
@@ -683,7 +646,6 @@ private struct NewRoutineSetColumnLabel: View {
 
 private struct NewRoutineSetIntField: View {
     @Binding var value: Int
-    @FocusState private var isFocused: Bool
 
     var body: some View {
         TextField("", value: $value, format: .number)
@@ -692,18 +654,6 @@ private struct NewRoutineSetIntField: View {
             .multilineTextAlignment(.center)
             .keyboardType(.numberPad)
             .submitLabel(.done)
-            .focused($isFocused)
-            .toolbar {
-                ToolbarItemGroup(placement: .keyboard) {
-                    Spacer()
-
-                    Button("Enter") {
-                        isFocused = false
-                    }
-                    .font(AppFonts.Body.bold(14))
-                    .foregroundStyle(AppColors.primaryFixed)
-                }
-            }
             .tint(AppColors.primaryFixed)
             .frame(maxWidth: .infinity)
             .frame(height: 31)
@@ -714,7 +664,6 @@ private struct NewRoutineSetIntField: View {
 
 private struct NewRoutineSetWeightField: View {
     @Binding var value: Double
-    @FocusState private var isFocused: Bool
 
     var body: some View {
         TextField("", value: $value, format: .number.precision(.fractionLength(0...1)))
@@ -723,18 +672,6 @@ private struct NewRoutineSetWeightField: View {
             .multilineTextAlignment(.center)
             .keyboardType(.decimalPad)
             .submitLabel(.done)
-            .focused($isFocused)
-            .toolbar {
-                ToolbarItemGroup(placement: .keyboard) {
-                    Spacer()
-
-                    Button("Enter") {
-                        isFocused = false
-                    }
-                    .font(AppFonts.Body.bold(14))
-                    .foregroundStyle(AppColors.primaryFixed)
-                }
-            }
             .tint(AppColors.primaryFixed)
             .frame(maxWidth: .infinity)
             .frame(height: 31)
@@ -818,6 +755,27 @@ private struct NewRoutineSetDraft: Identifiable {
 
     var weightText: String {
         weight.formatted(.number.precision(.fractionLength(weight.truncatingRemainder(dividingBy: 1) == 0 ? 0 : 1)))
+    }
+}
+
+private extension View {
+    func routineKeyboardDismissToolbar() -> some View {
+        toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+
+                Button("Done") {
+                    UIApplication.shared.sendAction(
+                        #selector(UIResponder.resignFirstResponder),
+                        to: nil,
+                        from: nil,
+                        for: nil
+                    )
+                }
+                .font(AppFonts.Body.bold(14))
+                .foregroundStyle(AppColors.primaryFixed)
+            }
+        }
     }
 }
 
