@@ -82,8 +82,7 @@ final class UserInfoViewModel: ObservableObject {
                 accessToken: accessToken
             )
 
-            let user = try await userService.currentUser(accessToken: accessToken)
-            CurrentUserStore.shared.update(user: user)
+            _ = try await userService.refreshCurrentUser(accessToken: accessToken)
 
             return true
         } catch {

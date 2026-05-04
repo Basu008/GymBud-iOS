@@ -11,7 +11,7 @@ struct BottomNavigationBar: View {
     @Binding var selectedTab: HomeTab
 
     private let items: [BottomNavItem] = [
-        BottomNavItem(title: "HOME", icon: "house.fill", tab: .home),
+        // BottomNavItem(title: "HOME", icon: "house.fill", tab: .home),
         BottomNavItem(title: "LOG", icon: "square.and.pencil", tab: .workout),
         BottomNavItem(title: "ROUTINE", icon: "figure.strengthtraining.traditional", tab: .routine),
         BottomNavItem(title: "ANALYTICS", icon: "chart.line.uptrend.xyaxis", tab: .analytics),

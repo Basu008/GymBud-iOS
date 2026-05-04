@@ -78,8 +78,8 @@ private struct FeedCardView: View {
 
                 MetricTileView(
                     label: "DURATION",
-                    value: activity.duration,
-                    unit: "min"
+                    value: FeedFormatters.duration(activity.duration),
+                    unit: ""
                 )
             }
 
@@ -116,10 +116,14 @@ private struct MetricTileView: View {
                 Text(value)
                     .font(AppFonts.Headline.bold(25))
                     .foregroundStyle(AppColors.onBackground)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.68)
 
-                Text(unit)
-                    .font(AppFonts.Body.bold(10))
-                    .foregroundStyle(AppColors.onSurfaceVariant)
+                if !unit.isEmpty {
+                    Text(unit)
+                        .font(AppFonts.Body.bold(10))
+                        .foregroundStyle(AppColors.onSurfaceVariant)
+                }
             }
 
             Spacer(minLength: 0)
@@ -129,6 +133,18 @@ private struct MetricTileView: View {
         .frame(maxWidth: .infinity, minHeight: 82, alignment: .topLeading)
         .background(Color.black.opacity(0.34))
         .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+    }
+}
+
+private enum FeedFormatters {
+    static func duration(_ value: String) -> String {
+        let trimmedValue = value.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard let minutes = Int(trimmedValue) else {
+            return trimmedValue
+        }
+
+        return DurationFormatters.workoutDuration(minutes: minutes)
     }
 }
 

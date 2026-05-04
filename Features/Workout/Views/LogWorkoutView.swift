@@ -15,11 +15,12 @@ struct LogWorkoutView: View {
     @State private var currentExerciseIndex = 0
     @State private var previousWorkout: WorkoutLog?
     @State private var elapsedSeconds = 0
+    @State private var isTimerPaused = false
     @State private var draggedExerciseID: UUID?
     @State private var errorMessage: String?
     @State private var isLoadingPrevious = false
     @State private var isCompletingWorkout = false
-    @State private var isShowingCompleteWorkout = false
+    @State private var completedWorkout: WorkoutLog?
     @State private var isShowingSkipConfirmation = false
     @State private var isShowingExerciseTransition = false
     @State private var nextExerciseCountdown = 15
@@ -66,8 +67,9 @@ struct LogWorkoutView: View {
         .task {
             await loadPreviousWorkout()
         }
-        .onReceive(timer) { date in
-            elapsedSeconds = max(0, Int(date.timeIntervalSince(startedAt)))
+        .onReceive(timer) { _ in
+            guard !isTimerPaused else { return }
+            elapsedSeconds += 1
         }
         .alert("Skip Exercise?", isPresented: $isShowingSkipConfirmation) {
             Button("Cancel", role: .cancel) {}
@@ -78,14 +80,14 @@ struct LogWorkoutView: View {
             Text("This exercise will be removed from your workout log.")
         }
         .alert("Well done!", isPresented: $isShowingExerciseTransition) {
-            Button("Skip Wait") {
-                startPendingExercise()
-            }
         } message: {
             Text("New exercise starting in \(nextExerciseCountdown) seconds.")
         }
-        .fullScreenCover(isPresented: $isShowingCompleteWorkout) {
-            CompleteWorkoutPlaceholderView()
+        .fullScreenCover(item: $completedWorkout) { workout in
+            CompleteWorkoutSummaryView(workout: workout, routine: routine) {
+                completedWorkout = nil
+                dismiss()
+            }
         }
         .onDisappear {
             transitionTask?.cancel()
@@ -105,7 +107,7 @@ struct LogWorkoutView: View {
             GBPrimaryButton(
                 title: primaryActionTitle,
                 isLoading: isCompletingWorkout,
-                isDisabled: exercises.isEmpty
+                isDisabled: exercises.isEmpty || isTimerPaused
             ) {
                 finishCurrentExercise()
             }
@@ -175,7 +177,10 @@ struct LogWorkoutView: View {
 
                         Spacer(minLength: 12)
 
-                        skipButton
+                        HStack(spacing: 8) {
+                            skipButton
+                            pauseButton
+                        }
                     }
 
                     Text(currentExercise.name)
@@ -188,16 +193,14 @@ struct LogWorkoutView: View {
                 VStack(spacing: 12) {
                     ForEach(currentExercise.sets.indices, id: \.self) { setIndex in
                         LogWorkoutSetCard(
-                            set: $exercises[currentExerciseIndex].sets[setIndex],
-                            previousSet: previousSet(
-                                exerciseID: currentExercise.exerciseID,
-                                setNumber: exercises[currentExerciseIndex].sets[setIndex].setNumber
-                            )
+                            set: $exercises[currentExerciseIndex].sets[setIndex]
                         ) {
                             exercises[currentExerciseIndex].sets[setIndex].hasUserEdited = true
                         } onToggleLog: {
+                            guard !isTimerPaused else { return }
                             exercises[currentExerciseIndex].sets[setIndex].isCompleted.toggle()
                         }
+                        .disabled(isTimerPaused)
                     }
                 }
             }
@@ -316,6 +319,24 @@ struct LogWorkoutView: View {
         .opacity(exercises.isEmpty || isCompletingWorkout ? 0.6 : 1)
     }
 
+    private var pauseButton: some View {
+        Button {
+            isTimerPaused.toggle()
+        } label: {
+            Text(isTimerPaused ? "RESUME" : "PAUSE")
+                .font(AppFonts.Body.bold(12))
+                .tracking(1.4)
+                .foregroundStyle(isTimerPaused ? AppColors.primaryFixed : AppColors.onSurfaceVariant)
+                .padding(.horizontal, 14)
+                .frame(height: 34)
+                .background((isTimerPaused ? AppColors.primaryFixed : AppColors.surfaceBright).opacity(isTimerPaused ? 0.12 : 0.9))
+                .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .disabled(exercises.isEmpty || isCompletingWorkout)
+        .opacity(exercises.isEmpty || isCompletingWorkout ? 0.6 : 1)
+    }
+
     private var currentExercise: LogWorkoutExerciseDraft {
         exercises[currentExerciseIndex]
     }
@@ -343,24 +364,27 @@ struct LogWorkoutView: View {
 
     private var formattedVolume: String {
         let volume = exercises
-            .flatMap(\.sets)
-            .filter(\.isCompleted)
-            .reduce(0) { $0 + Double($1.effectiveReps) * $1.effectiveWeightKG }
+            .reduce(0) { total, exercise in
+                total + exercise.sets
+                    .filter(\.isCompleted)
+                    .reduce(0) { setTotal, set in
+                        setTotal + Double(set.effectiveReps) * set.effectiveWeightKG * exercise.volumeMultiplier
+                    }
+            }
 
         return volume.formatted(.number.precision(.fractionLength(volume.truncatingRemainder(dividingBy: 1) == 0 ? 0 : 1)))
     }
 
     private var formattedElapsedTime: String {
+        if elapsedSeconds >= 3600 {
+            let hours = elapsedSeconds / 3600
+            let minutes = (elapsedSeconds % 3600) / 60
+            return "\(hours)h \(minutes)m"
+        }
+
         let minutes = elapsedSeconds / 60
         let seconds = elapsedSeconds % 60
         return "\(minutes):\(String(format: "%02d", seconds))"
-    }
-
-    private func previousSet(exerciseID: String, setNumber: Int) -> WorkoutSetLog? {
-        previousWorkout?.exercises
-            .first { $0.exerciseID == exerciseID }?
-            .sets
-            .first { $0.setNumber == setNumber && $0.actualReps != nil && $0.actualWeightKG != nil }
     }
 
     private func removeLastSet() {
@@ -369,7 +393,7 @@ struct LogWorkoutView: View {
     }
 
     private func finishCurrentExercise() {
-        guard !exercises.isEmpty, !isCompletingWorkout else { return }
+        guard !exercises.isEmpty, !isCompletingWorkout, !isTimerPaused else { return }
         transitionTask?.cancel()
 
         for index in exercises[currentExerciseIndex].sets.indices {
@@ -462,8 +486,7 @@ struct LogWorkoutView: View {
 
         Task {
             do {
-                _ = try await workoutService.completeWorkout(request, accessToken: accessToken)
-                isShowingCompleteWorkout = true
+                completedWorkout = try await workoutService.completeWorkout(request, accessToken: accessToken)
             } catch {
                 errorMessage = "Unable to complete workout."
             }
@@ -557,7 +580,6 @@ private struct LogWorkoutStatCard: View {
 
 private struct LogWorkoutSetCard: View {
     @Binding var set: LogWorkoutSetDraft
-    let previousSet: WorkoutSetLog?
     let onBeginEditing: () -> Void
     let onToggleLog: () -> Void
 
@@ -586,14 +608,6 @@ private struct LogWorkoutSetCard: View {
             )
 
             Spacer(minLength: 4)
-
-            if let previousText {
-                Text(previousText)
-                    .font(AppFonts.Body.bold(9))
-                    .foregroundStyle(AppColors.onSurfaceVariant)
-                    .lineLimit(2)
-                    .frame(width: 58, alignment: .leading)
-            }
 
             if set.isCompleted {
                 Button(action: onToggleLog) {
@@ -628,17 +642,6 @@ private struct LogWorkoutSetCard: View {
                 .stroke(set.isCompleted ? Color.clear : AppColors.onBackground.opacity(0.88), lineWidth: 1.5)
         )
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-    }
-
-    private var previousText: String? {
-        guard let reps = previousSet?.actualReps,
-              let weight = previousSet?.actualWeightKG
-        else {
-            return nil
-        }
-
-        let weightText = weight.formatted(.number.precision(.fractionLength(weight.truncatingRemainder(dividingBy: 1) == 0 ? 0 : 1)))
-        return "PREV: \(weightText) KG X \(reps)"
     }
 }
 
@@ -792,11 +795,15 @@ private struct LogWorkoutExerciseDraft: Identifiable {
     let id = UUID()
     let exerciseID: String
     let name: String
+    let movementMethod: String?
+    let equipment: String?
     var sets: [LogWorkoutSetDraft]
 
     nonisolated init(routineExercise: RoutineExercise) {
         exerciseID = routineExercise.exerciseID
         name = routineExercise.exercise.name
+        movementMethod = routineExercise.exercise.movementMode
+        equipment = routineExercise.exercise.equipment
         let orderedSets = routineExercise.sets.sorted { $0.setNumber < $1.setNumber }
         sets = orderedSets.isEmpty
             ? [LogWorkoutSetDraft(setNumber: 1, plannedMinReps: 8, plannedMaxReps: 10, plannedWeightKG: 0)]
@@ -823,6 +830,12 @@ private struct LogWorkoutExerciseDraft: Identifiable {
     var repRangeText: String {
         guard let firstSet = sets.first else { return "0 Reps" }
         return "\(firstSet.plannedMinReps)-\(firstSet.plannedMaxReps) Reps"
+    }
+
+    var volumeMultiplier: Double {
+        let isUnilateral = movementMethod?.caseInsensitiveCompare("unilateral") == .orderedSame
+        let isDumbbell = equipment?.caseInsensitiveCompare("dumbbell") == .orderedSame
+        return isUnilateral || isDumbbell ? 2 : 1
     }
 }
 

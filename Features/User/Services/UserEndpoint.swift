@@ -9,6 +9,7 @@ import Foundation
 
 nonisolated enum UserEndpoint: Sendable {
     case currentUser(accessToken: String)
+    case personalRecords(page: Int, limit: Int, accessToken: String)
     case updateProfile(UpdateProfileRequest, accessToken: String)
     case updateBodyMetric(BodyMetricRequest, accessToken: String)
     case uploadProfileImage(imageData: Data, accessToken: String)
@@ -19,6 +20,8 @@ nonisolated extension UserEndpoint: APIEndpoint {
         switch self {
         case .currentUser, .updateProfile:
             return "users/me"
+        case .personalRecords:
+            return "users/me/personal-records"
         case .updateBodyMetric:
             return "users/me/body-metrics"
         case .uploadProfileImage:
@@ -28,7 +31,7 @@ nonisolated extension UserEndpoint: APIEndpoint {
 
     nonisolated var method: HTTPMethod {
         switch self {
-        case .currentUser:
+        case .currentUser, .personalRecords:
             return .get
         case .updateProfile:
             return .patch
@@ -37,9 +40,23 @@ nonisolated extension UserEndpoint: APIEndpoint {
         }
     }
 
+    nonisolated var queryItems: [URLQueryItem] {
+        switch self {
+        case .personalRecords(let page, let limit, _):
+            return [
+                URLQueryItem(name: "page", value: "\(max(page, 1))"),
+                URLQueryItem(name: "limit", value: "\(max(limit, 1))")
+            ]
+        case .currentUser, .updateProfile, .updateBodyMetric, .uploadProfileImage:
+            return []
+        }
+    }
+
     nonisolated var headers: [String: String] {
         switch self {
         case .currentUser(let accessToken):
+            return ["Authorization": "Bearer \(accessToken)"]
+        case .personalRecords(_, _, let accessToken):
             return ["Authorization": "Bearer \(accessToken)"]
         case .updateProfile(_, let accessToken), .updateBodyMetric(_, let accessToken):
             return [
@@ -56,7 +73,7 @@ nonisolated extension UserEndpoint: APIEndpoint {
 
     nonisolated var body: Data? {
         switch self {
-        case .currentUser:
+        case .currentUser, .personalRecords:
             return nil
         case .updateProfile(let request, _):
             return try? JSONEncoder().encode(request)

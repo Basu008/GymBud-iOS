@@ -30,16 +30,12 @@ nonisolated final class APIClient: Sendable {
         do {
             (data, response) = try await session.data(for: request)
         } catch {
-            Self.logNetworkFailure(for: endpoint, request: request, error: error)
             throw error
         }
 
         guard let httpResponse = response as? HTTPURLResponse else {
-            Self.logInvalidResponse(for: endpoint, request: request, response: response)
             throw APIError.invalidResponse
         }
-
-        Self.logResponse(for: endpoint, request: request, response: httpResponse, data: data)
 
         guard (200...299).contains(httpResponse.statusCode) else {
             throw APIError.requestFailed(
@@ -67,46 +63,6 @@ nonisolated final class APIClient: Sendable {
         }
 
         return response.messages
-    }
-
-    private static func logNetworkFailure(for endpoint: any APIEndpoint, request: URLRequest, error: Error) {
-        #if DEBUG
-        guard shouldLog(endpoint) else { return }
-        print("""
-        [GymBud API] \(request.httpMethod ?? "HTTP") \(request.url?.absoluteString ?? "<missing-url>")
-        Network error: \(error.localizedDescription)
-        """)
-        #endif
-    }
-
-    private static func logInvalidResponse(for endpoint: any APIEndpoint, request: URLRequest, response: URLResponse) {
-        #if DEBUG
-        guard shouldLog(endpoint) else { return }
-        print("""
-        [GymBud API] \(request.httpMethod ?? "HTTP") \(request.url?.absoluteString ?? "<missing-url>")
-        Invalid response: \(response)
-        """)
-        #endif
-    }
-
-    private static func logResponse(for endpoint: any APIEndpoint, request: URLRequest, response: HTTPURLResponse, data: Data) {
-        #if DEBUG
-        guard shouldLog(endpoint) else { return }
-        let responseBody = String(data: data, encoding: .utf8) ?? "<\(data.count) bytes, non-UTF8 response>"
-        print("""
-        [GymBud API] \(request.httpMethod ?? "HTTP") \(request.url?.absoluteString ?? "<missing-url>")
-        Status: \(response.statusCode)
-        Response: \(responseBody)
-        """)
-        #endif
-    }
-
-    private static func shouldLog(_ endpoint: any APIEndpoint) -> Bool {
-        #if DEBUG
-        endpoint is UserEndpoint || endpoint is RoutineEndpoint || endpoint is ExerciseReferenceEndpoint || endpoint is WorkoutEndpoint
-        #else
-        false
-        #endif
     }
 }
 

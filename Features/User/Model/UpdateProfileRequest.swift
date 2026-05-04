@@ -8,9 +8,9 @@
 import Foundation
 
 nonisolated struct UpdateProfileRequest: Encodable, Sendable {
-    let displayName: String
-    let gender: String
-    let dateOfBirth: String
+    let displayName: String?
+    let gender: String?
+    let dateOfBirth: String?
     let profileImageURL: String?
 
     enum CodingKeys: String, CodingKey {

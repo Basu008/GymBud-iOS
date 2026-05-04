@@ -89,7 +89,6 @@ final class CustomExerciseViewModel: ObservableObject {
         else {
             errorMessage = "Please log in again to save exercises."
             successMessage = nil
-            Self.log("Skipped create exercise because no auth token is stored.")
             return
         }
 
@@ -102,12 +101,9 @@ final class CustomExerciseViewModel: ObservableObject {
         }
 
         do {
-            Self.log("Creating exercise name=\(request.name) movementMode=\(request.movementMode.isEmpty ? "<empty>" : request.movementMode) tokenPresent=true")
             createdExercise = try await service.createExercise(request, accessToken: accessToken)
             successMessage = "Exercise saved."
-            Self.log("Created exercise id=\(createdExercise?.id ?? "<missing>")")
         } catch {
-            Self.log("Create exercise failed: \(error.localizedDescription)")
             errorMessage = "Unable to save exercise."
         }
     }
@@ -160,11 +156,5 @@ final class CustomExerciseViewModel: ObservableObject {
     private var normalizedMovementMode: String {
         let mode = movementMode.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         return movementModeOptions.contains(mode) ? mode : ""
-    }
-
-    private static func log(_ message: String) {
-        #if DEBUG
-        print("[CustomExerciseViewModel] \(message)")
-        #endif
     }
 }

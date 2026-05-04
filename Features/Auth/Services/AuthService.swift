@@ -12,6 +12,7 @@ nonisolated protocol AuthServiceProtocol: Sendable {
     nonisolated func startSignInFlow()
     nonisolated func signUp(username: String, password: String, email: String) async throws -> Bool
     nonisolated func logIn(username: String, password: String) async throws -> LogInResponse
+    nonisolated func logOut(accessToken: String) async throws
     nonisolated func storedAccessToken() -> String?
 }
 
@@ -70,6 +71,10 @@ nonisolated final class AuthService: Sendable {
         tokenStore.accessToken
     }
 
+    nonisolated func logOut(accessToken: String) async throws {
+        _ = try await apiClient.request(AuthEndpoint.logOut(accessToken: accessToken))
+        tokenStore.clearAccessToken()
+    }
 }
 
 nonisolated extension AuthService: AuthServiceProtocol {}

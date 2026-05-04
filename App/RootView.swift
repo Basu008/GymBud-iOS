@@ -38,7 +38,11 @@ struct RootView: View {
                     appDestination = .home
                 }
             case .home:
-                HomeView()
+                HomeView {
+                    CurrentUserStore.shared.clear()
+                    path.removeAll()
+                    appDestination = .onboarding
+                }
             }
         }
         .task {

@@ -9,17 +9,20 @@ import SwiftUI
 
 
 struct HomeView: View {
-    @State private var selectedTab: HomeTab = .home
+    @State private var selectedTab: HomeTab = .workout
     @ObservedObject private var currentUserStore: CurrentUserStore
     private let feedItems: [FeedActivity]? = nil
+    private let onLogOut: () -> Void
 
     @MainActor
-    init() {
+    init(onLogOut: @escaping () -> Void = {}) {
         self.currentUserStore = CurrentUserStore.shared
+        self.onLogOut = onLogOut
     }
 
-    init(currentUserStore: CurrentUserStore) {
+    init(currentUserStore: CurrentUserStore, onLogOut: @escaping () -> Void = {}) {
         self.currentUserStore = currentUserStore
+        self.onLogOut = onLogOut
     }
 
     var body: some View {
@@ -55,7 +58,7 @@ struct HomeView: View {
         case .analytics:
             AnalyticsView()
         case .profile:
-            ProfileView()
+            ProfileView(onLogOut: onLogOut)
         }
     }
 

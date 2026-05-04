@@ -12,6 +12,9 @@ import UIKit
 nonisolated protocol UserServiceProtocol: Sendable {
     nonisolated func storedAccessToken() -> String?
     nonisolated func currentUser(accessToken: String) async throws -> AuthenticatedUser
+    nonisolated func refreshCurrentUser(accessToken: String) async throws -> AuthenticatedUser
+    nonisolated func personalRecords(page: Int, limit: Int, accessToken: String) async throws -> PersonalRecordsPayload
+    nonisolated func updateProfile(_ request: UpdateProfileRequest, accessToken: String) async throws
     nonisolated func updateProfile(displayName: String, gender: String, dateOfBirth: String, profileImageURL: String?, accessToken: String) async throws
     nonisolated func updateBodyMetric(heightCM: Double, weightKG: Double, accessToken: String) async throws
     nonisolated func uploadProfileImage(_ imageData: Data, accessToken: String) async throws -> String
@@ -47,6 +50,23 @@ nonisolated final class UserService: Sendable {
         return try response.requirePayload()
     }
 
+    nonisolated func refreshCurrentUser(accessToken: String) async throws -> AuthenticatedUser {
+        let user = try await currentUser(accessToken: accessToken)
+        await MainActor.run {
+            CurrentUserStore.shared.update(user: user)
+        }
+        return user
+    }
+
+    nonisolated func personalRecords(page: Int, limit: Int = 20, accessToken: String) async throws -> PersonalRecordsPayload {
+        let response = try await apiClient.request(
+            UserEndpoint.personalRecords(page: page, limit: limit, accessToken: accessToken),
+            responseType: APIResponse<PersonalRecordsPayload>.self
+        )
+
+        return try response.requirePayload()
+    }
+
     nonisolated func updateProfile(displayName: String, gender: String, dateOfBirth: String, profileImageURL: String?, accessToken: String) async throws {
         guard gender == "M" || gender == "F" else {
             throw UserServiceError.unsupportedGender
@@ -59,9 +79,17 @@ nonisolated final class UserService: Sendable {
             profileImageURL: profileImageURL
         )
 
-        _ = try await apiClient.request(
-            UserEndpoint.updateProfile(request, accessToken: accessToken)
-        )
+        try await updateProfile(request, accessToken: accessToken)
+    }
+
+    nonisolated func updateProfile(_ request: UpdateProfileRequest, accessToken: String) async throws {
+        if let gender = request.gender,
+           gender != "M",
+           gender != "F" {
+            throw UserServiceError.unsupportedGender
+        }
+
+        _ = try await apiClient.request(UserEndpoint.updateProfile(request, accessToken: accessToken))
     }
 
     nonisolated func updateBodyMetric(heightCM: Double, weightKG: Double, accessToken: String) async throws {
@@ -83,6 +111,7 @@ nonisolated final class UserService: Sendable {
 
         return try response.requirePayload().imageURL
     }
+
 }
 
 nonisolated extension UserService: UserServiceProtocol {}

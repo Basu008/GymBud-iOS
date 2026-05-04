@@ -49,7 +49,6 @@ final class ExercisesViewModel: ObservableObject {
         errorMessage = nil
         currentPage = 1
         canLoadMorePages = true
-        Self.log("Loading initial exercises and categories.")
 
         defer {
             isLoading = false
@@ -61,9 +60,7 @@ final class ExercisesViewModel: ObservableObject {
 
             applyFetchedExercises(try await exerciseValues)
             categories = try await categoryValues
-            Self.log("Loaded \(exercises.count) exercises and \(categories.count) categories.")
         } catch {
-            Self.log("Initial load failed: \(error.localizedDescription)")
             errorMessage = "Unable to load exercises."
         }
     }
@@ -75,7 +72,6 @@ final class ExercisesViewModel: ObservableObject {
         errorMessage = nil
         currentPage = 1
         canLoadMorePages = true
-        Self.log("Refreshing exercises.")
 
         defer {
             isLoading = false
@@ -83,9 +79,7 @@ final class ExercisesViewModel: ObservableObject {
 
         do {
             applyFetchedExercises(try await fetchExercises())
-            Self.log("Loaded \(exercises.count) exercises.")
         } catch {
-            Self.log("Exercise refresh failed: \(error.localizedDescription)")
             errorMessage = "Unable to load exercises."
         }
     }
@@ -97,17 +91,14 @@ final class ExercisesViewModel: ObservableObject {
     func toggleSelection(for exercise: Exercise) {
         if isSelected(exercise) {
             selectedExercises.removeAll { $0.id == exercise.id }
-            Self.log("Deselected exercise id=\(exercise.id)")
         } else {
             selectedExercises.append(exercise)
-            Self.log("Selected exercise id=\(exercise.id)")
         }
     }
 
     func selectExercise(_ exercise: Exercise) {
         selectedExercises.removeAll { $0.id == exercise.id }
         selectedExercises.append(exercise)
-        Self.log("Selected created exercise id=\(exercise.id)")
     }
 
     func loadMoreExercisesIfNeeded(currentExercise: Exercise) async {
@@ -130,9 +121,7 @@ final class ExercisesViewModel: ObservableObject {
             canLoadMorePages = !nextExercises.isEmpty
             currentPage = nextPage
             appendFetchedExercises(nextExercises)
-            Self.log("Loaded page \(nextPage). Total exercises=\(exercises.count).")
         } catch {
-            Self.log("Exercise pagination failed: \(error.localizedDescription)")
             canLoadMorePages = false
         }
     }
@@ -141,14 +130,10 @@ final class ExercisesViewModel: ObservableObject {
         guard let accessToken = authTokenStore.accessToken,
               !accessToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         else {
-            Self.log("Skipped exercise fetch because no auth token is stored.")
             return []
         }
 
         let category = selectedCategoryName == "All" ? nil : selectedCategoryName
-        Self.log(
-            "Fetching exercises category=\(category ?? "<all>") name=\(searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "<empty>" : searchText) page=\(page) tokenPresent=true"
-        )
 
         return try await service.exercises(
             category: category,
@@ -173,12 +158,6 @@ final class ExercisesViewModel: ObservableObject {
         selectedExercises = selectedExercises.map { selectedExercise in
             exercises.first { $0.id == selectedExercise.id } ?? selectedExercise
         }
-    }
-
-    private static func log(_ message: String) {
-        #if DEBUG
-        print("[ExercisesViewModel] \(message)")
-        #endif
     }
 }
 

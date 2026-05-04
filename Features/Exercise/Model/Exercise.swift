@@ -84,7 +84,7 @@ nonisolated struct Exercise: Identifiable, Decodable, Sendable {
             primaryMuscle: try Self.firstString(in: container, keys: [.primaryMuscle]),
             secondaryMuscles: try Self.secondaryMuscles(in: container),
             difficulty: try Self.firstString(in: container, keys: [.difficulty]),
-            movementMode: try Self.firstString(in: container, keys: [.movementMode]),
+            movementMode: try Self.firstString(in: container, keys: [.movementMode, .movementMethod]),
             isActive: try container.decodeIfPresent(Bool.self, forKey: .isActive) ?? true,
             createdAt: try Self.firstString(in: container, keys: [.createdAt]),
             updatedAt: try Self.firstString(in: container, keys: [.updatedAt])
@@ -142,6 +142,7 @@ nonisolated struct Exercise: Identifiable, Decodable, Sendable {
         case secondaryMuscles = "secondary_muscles"
         case difficulty
         case movementMode = "movement_mode"
+        case movementMethod = "movement_method"
         case isActive = "is_active"
         case createdAt = "created_at"
         case updatedAt = "updated_at"

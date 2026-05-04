@@ -21,13 +21,13 @@ struct HomeTopBarView: View {
 
             Spacer()
 
-            Button {} label: {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(AppColors.onSurfaceVariant)
-                    .frame(width: 34, height: 34)
-            }
-            .buttonStyle(.plain)
+//            Button {} label: {
+//                Image(systemName: "magnifyingglass")
+//                    .font(.system(size: 14, weight: .semibold))
+//                    .foregroundStyle(AppColors.onSurfaceVariant)
+//                    .frame(width: 34, height: 34)
+//            }
+//            .buttonStyle(.plain)
         }
         .frame(height: 34)
     }

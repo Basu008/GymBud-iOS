@@ -10,6 +10,7 @@ import Foundation
 nonisolated protocol AuthTokenStoreProtocol: Sendable {
     nonisolated var accessToken: String? { get }
     nonisolated func saveAccessToken(_ token: String)
+    nonisolated func clearAccessToken()
 }
 
 nonisolated final class AuthTokenStore: AuthTokenStoreProtocol, @unchecked Sendable {
@@ -26,5 +27,9 @@ nonisolated final class AuthTokenStore: AuthTokenStoreProtocol, @unchecked Senda
 
     nonisolated func saveAccessToken(_ token: String) {
         userDefaults.set(token, forKey: accessTokenKey)
+    }
+
+    nonisolated func clearAccessToken() {
+        userDefaults.removeObject(forKey: accessTokenKey)
     }
 }

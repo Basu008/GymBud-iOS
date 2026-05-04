@@ -11,6 +11,9 @@ nonisolated protocol WorkoutServiceProtocol: Sendable {
     nonisolated func storedAccessToken() -> String?
     nonisolated func latestWorkout(routineID: String, accessToken: String) async throws -> WorkoutLog?
     nonisolated func completeWorkout(_ request: CompleteWorkoutRequest, accessToken: String) async throws -> WorkoutLog
+    nonisolated func analytics(accessToken: String) async throws -> WorkoutAnalyticsPayload
+    nonisolated func userWorkouts(userID: String, page: Int, accessToken: String) async throws -> [WorkoutLog]
+    nonisolated func deleteWorkout(id: String, accessToken: String) async throws -> String
 }
 
 nonisolated final class WorkoutService: Sendable {
@@ -54,6 +57,33 @@ nonisolated final class WorkoutService: Sendable {
         )
 
         return try response.requirePayload().workout
+    }
+
+    nonisolated func analytics(accessToken: String) async throws -> WorkoutAnalyticsPayload {
+        let response = try await apiClient.request(
+            WorkoutEndpoint.analytics(accessToken: accessToken),
+            responseType: APIResponse<WorkoutAnalyticsPayload>.self
+        )
+
+        return try response.requirePayload()
+    }
+
+    nonisolated func userWorkouts(userID: String, page: Int, accessToken: String) async throws -> [WorkoutLog] {
+        let response = try await apiClient.request(
+            WorkoutEndpoint.userWorkouts(userID: userID, page: page, accessToken: accessToken),
+            responseType: APIResponse<WorkoutListPayload>.self
+        )
+
+        return try response.requirePayload().workouts
+    }
+
+    nonisolated func deleteWorkout(id: String, accessToken: String) async throws -> String {
+        let response = try await apiClient.request(
+            WorkoutEndpoint.deleteWorkout(id: id, accessToken: accessToken),
+            responseType: APIResponse<DeleteWorkoutPayload>.self
+        )
+
+        return try response.requirePayload().deletedID
     }
 }
 
