@@ -67,7 +67,7 @@ struct NewRoutineView: View {
                     }
 
                 }
-                .padding(.horizontal, 15)
+                .padding(.horizontal, 16)
                 .padding(.top, 16)
                 .padding(.bottom, 114)
             }
@@ -81,7 +81,7 @@ struct NewRoutineView: View {
                         .font(AppFonts.Body.bold(12))
                         .foregroundStyle(AppColors.error)
                         .multilineTextAlignment(.center)
-                        .padding(.horizontal, 20)
+                        .padding(.horizontal, 16)
                         .padding(.bottom, 10)
                 }
 
@@ -91,7 +91,7 @@ struct NewRoutineView: View {
                 ) {
                     saveRoutine()
                 }
-                .padding(.horizontal, 15)
+                .padding(.horizontal, 16)
                 .padding(.bottom, 16)
             }
         }
@@ -138,7 +138,7 @@ struct NewRoutineView: View {
                 .font(AppFonts.Body.bold(14))
                 .foregroundStyle(AppColors.onBackground)
                 .tint(AppColors.primaryFixed)
-                .padding(.horizontal, 18)
+                .padding(.horizontal, 16)
                 .frame(height: 56)
                 .background(Color.black.opacity(0.16))
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
@@ -353,7 +353,7 @@ struct EditRoutineView: View {
                         }
                     }
                 }
-                .padding(.horizontal, 15)
+                .padding(.horizontal, 16)
                 .padding(.top, 16)
                 .padding(.bottom, 114)
             }
@@ -367,7 +367,7 @@ struct EditRoutineView: View {
                         .font(AppFonts.Body.bold(12))
                         .foregroundStyle(AppColors.error)
                         .multilineTextAlignment(.center)
-                        .padding(.horizontal, 20)
+                        .padding(.horizontal, 16)
                         .padding(.bottom, 10)
                 }
 
@@ -377,7 +377,7 @@ struct EditRoutineView: View {
                 ) {
                     saveRoutine()
                 }
-                .padding(.horizontal, 15)
+                .padding(.horizontal, 16)
                 .padding(.bottom, 16)
             }
         }
@@ -424,7 +424,7 @@ struct EditRoutineView: View {
                 .font(AppFonts.Body.bold(14))
                 .foregroundStyle(AppColors.onBackground)
                 .tint(AppColors.primaryFixed)
-                .padding(.horizontal, 18)
+                .padding(.horizontal, 16)
                 .frame(height: 56)
                 .background(Color.black.opacity(0.16))
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
@@ -583,7 +583,7 @@ private struct NewRoutineExerciseCard: View {
             }
             .buttonStyle(.plain)
         }
-        .padding(.horizontal, 17)
+        .padding(.horizontal, 16)
         .padding(.vertical, 19)
         .background(AppColors.surfaceVariant.opacity(0.72))
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))

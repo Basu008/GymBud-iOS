@@ -27,7 +27,7 @@ struct AnalyticsView: View {
 
                         content
                     }
-                    .padding(.horizontal, 26)
+                    .padding(.horizontal, 16)
                     .padding(.bottom, 18)
                     .frame(maxWidth: .infinity, minHeight: geometry.size.height, alignment: .top)
                 }
@@ -40,6 +40,7 @@ struct AnalyticsView: View {
             .task {
                 await loadAnalytics()
             }
+            .background(AppColors.background.ignoresSafeArea())
         }
     }
 
@@ -155,37 +156,27 @@ private struct AnalyticsVolumeCard: View {
     let totalVolume: Double
 
     var body: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Total Volume")
-                    .font(AppFonts.Body.medium(18))
-                    .foregroundStyle(AppColors.onSurfaceVariant)
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Total Volume")
+                .font(AppFonts.Body.medium(18))
+                .foregroundStyle(AppColors.onSurfaceVariant)
 
-                HStack(alignment: .lastTextBaseline, spacing: 6) {
-                    Text(AnalyticsFormatters.wholeNumber(totalVolume))
-                        .font(AppFonts.Headline.bold(62))
-                        .foregroundStyle(AppColors.primary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.62)
+            HStack(alignment: .lastTextBaseline, spacing: 6) {
+                Text(AnalyticsFormatters.wholeNumber(totalVolume))
+                    .font(AppFonts.Headline.bold(62))
+                    .foregroundStyle(AppColors.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
+                    .layoutPriority(1)
 
-                    Text("kg")
-                        .font(AppFonts.Body.bold(16))
-                        .foregroundStyle(AppColors.primaryFixed)
-                }
+                Text("kg")
+                    .font(AppFonts.Body.bold(16))
+                    .foregroundStyle(AppColors.primaryFixed)
             }
-
-            Spacer(minLength: 12)
-
-            Image(systemName: "dumbbell.fill")
-                .font(.system(size: 88, weight: .bold))
-                .foregroundStyle(AppColors.onSurfaceVariant.opacity(0.18))
-                .rotationEffect(.degrees(-45))
-                .padding(.top, 6)
-                .padding(.trailing, 4)
         }
-        .padding(.horizontal, 26)
-        .padding(.vertical, 26)
-        .frame(maxWidth: .infinity, minHeight: 192, alignment: .topLeading)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 20)
+        .frame(maxWidth: .infinity, minHeight: 150, alignment: .topLeading)
         .background(AppColors.surfaceVariant.opacity(0.78))
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
@@ -220,7 +211,7 @@ private struct AnalyticsMetricCard: View {
                 }
             }
         }
-        .padding(.horizontal, 24)
+        .padding(.horizontal, 16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(height: 108)
         .background(AppColors.surfaceVariant.opacity(0.58))
@@ -258,7 +249,7 @@ private struct AnalyticsWorkoutRow: View {
                 .font(.system(size: 17, weight: .bold))
                 .foregroundStyle(AppColors.onSurfaceVariant)
         }
-        .padding(.horizontal, 22)
+        .padding(.horizontal, 16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(height: 98)
         .background(AppColors.surfaceVariant.opacity(0.34))
@@ -346,7 +337,7 @@ private struct WorkoutHistoryListView: View {
                         }
                     }
                 }
-                .padding(.horizontal, 26)
+                .padding(.horizontal, 16)
                 .padding(.top, 18)
                 .padding(.bottom, 24)
             }
@@ -449,7 +440,7 @@ private struct WorkoutHistoryDetailView: View {
                     detailStats
                     exerciseBreakdown
                 }
-                .padding(.horizontal, 22)
+                .padding(.horizontal, 16)
                 .padding(.top, 18)
                 .padding(.bottom, 28)
             }
@@ -661,7 +652,7 @@ private struct WorkoutHistoryExerciseCard: View {
                         .foregroundStyle(AppColors.onSurfaceVariant)
                 }
             }
-            .padding(.horizontal, 18)
+            .padding(.horizontal, 16)
             .padding(.vertical, 18)
 
             HStack(spacing: 0) {

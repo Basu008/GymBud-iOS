@@ -28,9 +28,10 @@ struct BottomNavigationBar: View {
                     selectedTab = item.tab
                 }
                 .frame(maxWidth: .infinity)
+                .frame(maxHeight: .infinity, alignment: .bottom)
             }
         }
-        .frame(height: 64)
+        .frame(height: 64, alignment: .bottom)
         .background(Color.black.opacity(0.76))
         .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
     }
@@ -53,7 +54,8 @@ private struct BottomNavigationItemView: View {
                     .tracking(1.1)
                     .foregroundStyle(isSelected ? AppColors.primary : AppColors.onSurfaceVariant)
             }
-            .frame(height: 56)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+            .padding(.bottom, 10)
         }
         .buttonStyle(.plain)
     }

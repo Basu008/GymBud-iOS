@@ -11,20 +11,20 @@ import UniformTypeIdentifiers
 
 struct LogWorkoutView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
     @State private var exercises: [LogWorkoutExerciseDraft]
     @State private var currentExerciseIndex = 0
     @State private var previousWorkout: WorkoutLog?
     @State private var elapsedSeconds = 0
     @State private var isTimerPaused = false
+    @State private var pausedSeconds = 0
+    @State private var pauseStartedAt: Date?
     @State private var draggedExerciseID: UUID?
     @State private var errorMessage: String?
     @State private var isLoadingPrevious = false
     @State private var isCompletingWorkout = false
     @State private var completedWorkout: WorkoutLog?
     @State private var isShowingSkipConfirmation = false
-    @State private var isShowingExerciseTransition = false
-    @State private var nextExerciseCountdown = 15
-    @State private var transitionTask: Task<Void, Never>?
     @State private var skippedExerciseIDs: Set<String> = []
     private let routine: Routine
     private let workoutService: any WorkoutServiceProtocol
@@ -55,7 +55,7 @@ struct LogWorkoutView: View {
                     setActions
                     upNextSection
                 }
-                .padding(.horizontal, 20)
+                .padding(.horizontal, 16)
                 .padding(.top, 14)
                 .padding(.bottom, 104)
             }
@@ -65,11 +65,15 @@ struct LogWorkoutView: View {
             bottomActionBar
         }
         .task {
+            updateElapsedSeconds()
             await loadPreviousWorkout()
         }
         .onReceive(timer) { _ in
-            guard !isTimerPaused else { return }
-            elapsedSeconds += 1
+            updateElapsedSeconds()
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            updateElapsedSeconds()
         }
         .alert("Skip Exercise?", isPresented: $isShowingSkipConfirmation) {
             Button("Cancel", role: .cancel) {}
@@ -79,18 +83,11 @@ struct LogWorkoutView: View {
         } message: {
             Text("This exercise will be removed from your workout log.")
         }
-        .alert("Well done!", isPresented: $isShowingExerciseTransition) {
-        } message: {
-            Text("New exercise starting in \(nextExerciseCountdown) seconds.")
-        }
         .fullScreenCover(item: $completedWorkout) { workout in
             CompleteWorkoutSummaryView(workout: workout, routine: routine) {
                 completedWorkout = nil
                 dismiss()
             }
-        }
-        .onDisappear {
-            transitionTask?.cancel()
         }
     }
 
@@ -101,7 +98,7 @@ struct LogWorkoutView: View {
                     .font(AppFonts.Body.bold(12))
                     .foregroundStyle(AppColors.error)
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal, 20)
+                    .padding(.horizontal, 16)
             }
 
             GBPrimaryButton(
@@ -111,7 +108,7 @@ struct LogWorkoutView: View {
             ) {
                 finishCurrentExercise()
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, 16)
         }
         .padding(.top, 10)
         .padding(.bottom, 12)
@@ -309,7 +306,7 @@ struct LogWorkoutView: View {
                 .font(AppFonts.Body.bold(12))
                 .tracking(1.4)
                 .foregroundStyle(AppColors.error)
-                .padding(.horizontal, 14)
+                .padding(.horizontal, 16)
                 .frame(height: 34)
                 .background(AppColors.error.opacity(0.1))
                 .clipShape(Capsule())
@@ -321,13 +318,13 @@ struct LogWorkoutView: View {
 
     private var pauseButton: some View {
         Button {
-            isTimerPaused.toggle()
+            toggleTimerPause()
         } label: {
             Text(isTimerPaused ? "RESUME" : "PAUSE")
                 .font(AppFonts.Body.bold(12))
                 .tracking(1.4)
                 .foregroundStyle(isTimerPaused ? AppColors.primaryFixed : AppColors.onSurfaceVariant)
-                .padding(.horizontal, 14)
+                .padding(.horizontal, 16)
                 .frame(height: 34)
                 .background((isTimerPaused ? AppColors.primaryFixed : AppColors.surfaceBright).opacity(isTimerPaused ? 0.12 : 0.9))
                 .clipShape(Capsule())
@@ -394,14 +391,13 @@ struct LogWorkoutView: View {
 
     private func finishCurrentExercise() {
         guard !exercises.isEmpty, !isCompletingWorkout, !isTimerPaused else { return }
-        transitionTask?.cancel()
 
         for index in exercises[currentExerciseIndex].sets.indices {
             exercises[currentExerciseIndex].sets[index].isCompleted = true
         }
 
         if currentExerciseIndex < exercises.count - 1 {
-            showExerciseTransition()
+            currentExerciseIndex += 1
             return
         }
 
@@ -410,8 +406,6 @@ struct LogWorkoutView: View {
 
     private func skipCurrentExercise() {
         guard !exercises.isEmpty, !isCompletingWorkout else { return }
-        transitionTask?.cancel()
-        isShowingExerciseTransition = false
 
         skippedExerciseIDs.insert(exercises[currentExerciseIndex].exerciseID)
         exercises.remove(at: currentExerciseIndex)
@@ -424,32 +418,33 @@ struct LogWorkoutView: View {
         currentExerciseIndex = min(currentExerciseIndex, exercises.count - 1)
     }
 
-    private func showExerciseTransition() {
-        nextExerciseCountdown = 15
-        isShowingExerciseTransition = true
-        transitionTask = Task {
-            for secondsRemaining in stride(from: 14, through: 0, by: -1) {
-                try? await Task.sleep(for: .seconds(1))
-                guard !Task.isCancelled else { return }
+    private func toggleTimerPause() {
+        let now = Date()
 
-                await MainActor.run {
-                    nextExerciseCountdown = secondsRemaining
-                }
+        if isTimerPaused {
+            if let pauseStartedAt {
+                pausedSeconds += max(0, Int(now.timeIntervalSince(pauseStartedAt)))
             }
-
-            await MainActor.run {
-                startPendingExercise()
-            }
+            pauseStartedAt = nil
+            isTimerPaused = false
+        } else {
+            updateElapsedSeconds(now: now)
+            pauseStartedAt = now
+            isTimerPaused = true
         }
+
+        updateElapsedSeconds(now: now)
     }
 
-    private func startPendingExercise() {
-        transitionTask?.cancel()
-        transitionTask = nil
-        isShowingExerciseTransition = false
+    private func updateElapsedSeconds(now: Date = Date()) {
+        let activePausedSeconds: Int
+        if let pauseStartedAt {
+            activePausedSeconds = max(0, Int(now.timeIntervalSince(pauseStartedAt)))
+        } else {
+            activePausedSeconds = 0
+        }
 
-        guard !exercises.isEmpty, currentExerciseIndex < exercises.count - 1 else { return }
-        currentExerciseIndex += 1
+        elapsedSeconds = max(0, Int(now.timeIntervalSince(startedAt)) - pausedSeconds - activePausedSeconds)
     }
 
     private func completeWorkout() {
@@ -570,7 +565,7 @@ private struct LogWorkoutStatCard: View {
                 }
             }
         }
-        .padding(.horizontal, 14)
+        .padding(.horizontal, 16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(height: 80)
         .background(Color.black.opacity(0.2))
@@ -634,7 +629,7 @@ private struct LogWorkoutSetCard: View {
                 .buttonStyle(.plain)
             }
         }
-        .padding(.horizontal, 10)
+        .padding(.horizontal, 16)
         .frame(height: 100)
         .background(set.isCompleted ? AppColors.surfaceVariant.opacity(0.62) : AppColors.surfaceBright.opacity(0.88))
         .overlay(
@@ -760,7 +755,7 @@ private struct LogWorkoutUpNextCard: View {
                 .foregroundStyle(AppColors.onSurfaceVariant)
                 .frame(width: 28, height: 28)
         }
-        .padding(.horizontal, 14)
+        .padding(.horizontal, 16)
         .frame(height: 78)
         .background(Color.black.opacity(0.18))
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
@@ -785,7 +780,7 @@ private struct CompleteWorkoutPlaceholderView: View {
             }
             .buttonStyle(.plain)
             .padding(.top, 14)
-            .padding(.leading, 20)
+            .padding(.leading, 16)
             .accessibilityLabel("Close complete workout")
         }
     }

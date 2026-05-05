@@ -37,7 +37,7 @@ struct RoutineView: View {
 
                     routineContent
                 }
-                .padding(.horizontal, 27)
+                .padding(.horizontal, 16)
                 .padding(.bottom, 18)
                 .frame(maxWidth: .infinity, minHeight: geometry.size.height, alignment: .top)
             }
@@ -46,6 +46,7 @@ struct RoutineView: View {
                 await viewModel.loadRoutines()
             }
         }
+        .background(AppColors.background.ignoresSafeArea())
         .task {
             await viewModel.loadRoutines()
         }
@@ -168,8 +169,8 @@ private struct RoutineCardView: View {
                 .disabled(isDeleting)
                 .accessibilityLabel("Delete \(routine.name)")
             }
-            .padding(.leading, 23)
-            .padding(.trailing, 20)
+            .padding(.leading, 16)
+            .padding(.trailing, 16)
         }
         .frame(height: 100)
         .background(AppColors.surfaceVariant.opacity(0.34))

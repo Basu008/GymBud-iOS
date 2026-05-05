@@ -70,7 +70,7 @@ struct ProfileView: View {
                             .padding(.top, 56)
                             .padding(.bottom, 30)
                     }
-                    .padding(.horizontal, 22)
+                    .padding(.horizontal, 16)
                     .frame(maxWidth: .infinity, minHeight: geometry.size.height, alignment: .top)
                 }
                 .scrollIndicators(.hidden)
@@ -79,6 +79,7 @@ struct ProfileView: View {
                 }
             }
             .navigationBarHidden(true)
+            .background(AppColors.background.ignoresSafeArea())
         }
         .task {
             await loadProfile()
@@ -187,7 +188,7 @@ private extension ProfileView {
                             ProfilePRCard(record: record, accent: index.isMultiple(of: 2) ? AppColors.primary : AppColors.secondary)
                         }
                     }
-                    .padding(.horizontal, 1)
+                    .padding(.horizontal, 16)
                 }
                 .scrollIndicators(.hidden)
             } else {
@@ -411,7 +412,7 @@ private struct ProfilePRCard: View {
             }
             .foregroundStyle(AppColors.primary)
         }
-        .padding(.horizontal, 20)
+        .padding(.horizontal, 16)
         .padding(.vertical, 18)
         .frame(width: 146, height: 124, alignment: .leading)
         .background(AppColors.surfaceVariant.opacity(0.72))
@@ -452,12 +453,12 @@ private struct ProfileRecentSessionRow: View {
                     .font(AppFonts.Body.bold(13))
                     .foregroundStyle(AppColors.onBackground)
             }
-            .padding(.horizontal, 13)
+            .padding(.horizontal, 16)
             .frame(height: 34)
             .background(AppColors.surfaceBright.opacity(0.82))
             .clipShape(Capsule())
         }
-        .padding(.horizontal, 18)
+        .padding(.horizontal, 16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(height: 70)
         .background(AppColors.surfaceVariant.opacity(0.34))
@@ -530,7 +531,7 @@ private struct PersonalRecordsListView: View {
                         }
                     }
                 }
-                .padding(.horizontal, 22)
+                .padding(.horizontal, 16)
                 .padding(.top, 18)
                 .padding(.bottom, 30)
             }
@@ -652,7 +653,7 @@ private struct PersonalRecordWideCard: View {
                 }
             }
         }
-        .padding(.horizontal, 20)
+        .padding(.horizontal, 16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(height: 118)
         .background(AppColors.surfaceVariant.opacity(0.58))
@@ -674,7 +675,7 @@ private struct PRValuePill: View {
             .foregroundStyle(AppColors.onSurfaceVariant)
             .lineLimit(1)
             .minimumScaleFactor(0.66)
-            .padding(.horizontal, 9)
+            .padding(.horizontal, 16)
             .frame(height: 26)
             .background(AppColors.surfaceBright.opacity(0.76))
             .clipShape(Capsule())
@@ -734,7 +735,7 @@ private struct ProfileEditUserInfoView: View {
                         saveButton
                             .padding(.top, 10)
                     }
-                    .padding(.horizontal, 22)
+                    .padding(.horizontal, 16)
                     .padding(.bottom, 26)
                 }
                 .scrollIndicators(.hidden)
@@ -802,7 +803,7 @@ private struct ProfileEditUserInfoView: View {
                         .labelsHidden()
                         .datePickerStyle(.compact)
                         .tint(AppColors.primary)
-                        .padding(.horizontal, 12)
+                        .padding(.horizontal, 16)
                         .frame(maxWidth: .infinity, minHeight: 54, alignment: .leading)
                         .background(AppColors.surfaceVariant.opacity(0.88))
                         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
@@ -904,7 +905,7 @@ private struct ProfileEditUserInfoView: View {
                         .foregroundStyle(AppColors.primary)
                 }
             }
-            .padding(.horizontal, 14)
+            .padding(.horizontal, 16)
             .frame(height: 54)
             .background(AppColors.surfaceVariant.opacity(0.88))
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))

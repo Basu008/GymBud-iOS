@@ -22,8 +22,8 @@ struct CompleteWorkoutSummaryView: View {
         summaries.flatMap(\.sets).filter { $0.prType != nil }
     }
 
-    private var totalVolumeLbs: Double {
-        summaries.reduce(0) { $0 + $1.totalVolumeLbs }
+    private var totalVolumeKG: Double {
+        summaries.reduce(0) { $0 + $1.totalVolumeKG }
     }
 
     private var totalSets: Int {
@@ -46,7 +46,7 @@ struct CompleteWorkoutSummaryView: View {
                     prHighlights
                     exerciseBreakdown
                 }
-                .padding(.horizontal, 20)
+                .padding(.horizontal, 16)
                 .padding(.top, 16)
                 .padding(.bottom, 28)
             }
@@ -81,7 +81,7 @@ struct CompleteWorkoutSummaryView: View {
                 .lineSpacing(4)
                 .minimumScaleFactor(0.82)
         }
-        .padding(.horizontal, 18)
+        .padding(.horizontal, 16)
         .padding(.top, 22)
         .padding(.bottom, 26)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -93,8 +93,8 @@ struct CompleteWorkoutSummaryView: View {
         VStack(spacing: 12) {
             CompleteWorkoutStatCard(
                 title: "TOTAL VOLUME",
-                value: Self.formattedWhole(totalVolumeLbs),
-                unit: "LBS",
+                value: Self.formattedWhole(totalVolumeKG),
+                unit: "KG",
                 isWide: true
             )
 
@@ -128,7 +128,7 @@ struct CompleteWorkoutSummaryView: View {
                             CompleteWorkoutPRCard(set: set)
                         }
                     }
-                    .padding(.trailing, 20)
+                    .padding(.trailing, 16)
                 }
                 .scrollIndicators(.hidden)
             }
@@ -154,16 +154,12 @@ struct CompleteWorkoutSummaryView: View {
         routine.exercises.first { $0.exerciseID == exerciseID }
     }
 
-    static func pounds(from kilograms: Double) -> Double {
-        kilograms * 2.2046226218
-    }
-
     static func formattedWhole(_ value: Double) -> String {
         value.formatted(.number.precision(.fractionLength(0)))
     }
 
-    static func formattedWeightLbs(_ kilograms: Double) -> String {
-        formattedWhole(pounds(from: kilograms))
+    static func formattedWeightKG(_ kilograms: Double) -> String {
+        formattedWhole(kilograms)
     }
 }
 
@@ -194,7 +190,7 @@ private struct CompleteWorkoutStatCard: View {
                 }
             }
         }
-        .padding(.horizontal, 18)
+        .padding(.horizontal, 16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(height: isWide ? 100 : 86)
         .background(AppColors.surfaceVariant.opacity(0.78))
@@ -218,7 +214,7 @@ private struct CompleteWorkoutPRCard: View {
             }
             .foregroundStyle(AppColors.success)
 
-            Text("\(set.weightLbsText) x \(set.reps)")
+            Text("\(set.weightKGText) x \(set.reps)")
                 .font(AppFonts.Headline.bold(25))
                 .foregroundStyle(AppColors.onBackground)
                 .lineLimit(1)
@@ -258,7 +254,7 @@ private struct CompleteWorkoutExerciseCard: View {
                 Spacer()
 
                 VStack(alignment: .trailing, spacing: 3) {
-                    Text("\(CompleteWorkoutSummaryView.formattedWhole(summary.totalVolumeLbs)) lbs")
+                    Text("\(CompleteWorkoutSummaryView.formattedWhole(summary.totalVolumeKG)) kg")
                         .font(AppFonts.Headline.bold(16))
                         .foregroundStyle(AppColors.success)
                         .lineLimit(1)
@@ -270,7 +266,7 @@ private struct CompleteWorkoutExerciseCard: View {
                         .foregroundStyle(AppColors.onSurfaceVariant)
                 }
             }
-            .padding(.horizontal, 18)
+            .padding(.horizontal, 16)
             .padding(.vertical, 18)
 
             HStack(spacing: 0) {
@@ -280,7 +276,7 @@ private struct CompleteWorkoutExerciseCard: View {
                             .font(AppFonts.Body.bold(8))
                             .foregroundStyle(AppColors.onSurfaceVariant)
 
-                        Text("\(set.weightLbsText)x\(set.reps)")
+                        Text("\(set.weightKGText)x\(set.reps)")
                             .font(AppFonts.Body.bold(12))
                             .foregroundStyle(set.resultColor)
                             .lineLimit(1)
@@ -319,8 +315,8 @@ private struct CompletedExerciseSummary: Identifiable {
             .compactMap { CompletedSetSummary(set: $0, exerciseName: exercise.exerciseName, volumeMultiplier: multiplier) }
     }
 
-    var totalVolumeLbs: Double {
-        sets.reduce(0) { $0 + $1.volumeLbs }
+    var totalVolumeKG: Double {
+        sets.reduce(0) { $0 + $1.volumeKG }
     }
 
     var subtitle: String {
@@ -363,12 +359,12 @@ private struct CompletedSetSummary: Identifiable {
         prType = WorkoutPRType(flags: set.prFlags)
     }
 
-    var weightLbsText: String {
-        CompleteWorkoutSummaryView.formattedWeightLbs(weightKG)
+    var weightKGText: String {
+        CompleteWorkoutSummaryView.formattedWeightKG(weightKG)
     }
 
-    var volumeLbs: Double {
-        CompleteWorkoutSummaryView.pounds(from: Double(reps) * weightKG * volumeMultiplier)
+    var volumeKG: Double {
+        Double(reps) * weightKG * volumeMultiplier
     }
 
     var isBelowPlanned: Bool {

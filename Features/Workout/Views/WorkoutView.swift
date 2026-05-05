@@ -32,7 +32,7 @@ struct WorkoutView: View {
 
                     content
                 }
-                .padding(.horizontal, 27)
+                .padding(.horizontal, 16)
                 .padding(.bottom, 18)
                 .frame(maxWidth: .infinity, minHeight: geometry.size.height, alignment: .top)
             }
@@ -41,6 +41,7 @@ struct WorkoutView: View {
                 await loadRoutines()
             }
         }
+        .background(AppColors.background.ignoresSafeArea())
         .task {
             await loadRoutines()
         }
@@ -102,7 +103,7 @@ struct WorkoutView: View {
                                 .background(AppColors.primaryFixed)
                                 .clipShape(Circle())
                         }
-                        .padding(.horizontal, 18)
+                        .padding(.horizontal, 16)
                         .frame(height: 92)
                         .background(AppColors.surfaceVariant.opacity(0.34))
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))

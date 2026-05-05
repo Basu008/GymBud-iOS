@@ -13,6 +13,9 @@ struct HomeView: View {
     @ObservedObject private var currentUserStore: CurrentUserStore
     private let feedItems: [FeedActivity]? = nil
     private let onLogOut: () -> Void
+    private let bottomNavigationHeight: CGFloat = 64
+    private let bottomNavigationBottomSpacing: CGFloat = 6
+    private let contentBottomSpacing: CGFloat = 24
 
     @MainActor
     init(onLogOut: @escaping () -> Void = {}) {
@@ -37,11 +40,15 @@ struct HomeView: View {
 
                 selectedContent
             }
-            .padding(.bottom, 78)
+            .padding(.bottom, bottomNavigationHeight + bottomNavigationBottomSpacing + contentBottomSpacing)
 
-            BottomNavigationBar(selectedTab: $selectedTab)
-                .padding(.horizontal, 9)
-                .padding(.bottom, 0)
+            VStack(spacing: 0) {
+                BottomNavigationBar(selectedTab: $selectedTab)
+                    .padding(.horizontal, 16)
+
+                Color.clear
+                    .frame(height: bottomNavigationBottomSpacing)
+            }
         }
         .navigationBarBackButtonHidden(true)
     }

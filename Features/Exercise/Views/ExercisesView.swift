@@ -36,7 +36,7 @@ struct ExercisesView: View {
                         createExerciseButton
                         exerciseList
                     }
-                    .padding(.horizontal, 14)
+                    .padding(.horizontal, 16)
                     .padding(.top, 18)
                     .padding(.bottom, 24)
                     .frame(maxWidth: .infinity, minHeight: geometry.size.height, alignment: .top)
@@ -96,7 +96,7 @@ struct ExercisesView: View {
             .accessibilityLabel("Save selected exercises")
         }
         .padding(.leading, 16)
-        .padding(.trailing, 22)
+        .padding(.trailing, 16)
         .padding(.top, 10)
         .padding(.bottom, 10)
         .background(Color.black.opacity(0.62))
@@ -118,7 +118,7 @@ struct ExercisesView: View {
             .textInputAutocapitalization(.words)
             .autocorrectionDisabled()
         }
-        .padding(.horizontal, 13)
+        .padding(.horizontal, 16)
         .frame(height: 45)
         .background(AppColors.surfaceVariant.opacity(0.44))
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
@@ -168,7 +168,7 @@ struct ExercisesView: View {
 
                 Spacer()
             }
-            .padding(.horizontal, 58)
+            .padding(.horizontal, 16)
             .frame(maxWidth: .infinity)
             .frame(height: 62)
             .background(AppColors.primary.opacity(0.05))
@@ -194,7 +194,7 @@ struct ExercisesView: View {
                 .font(AppFonts.Body.bold(12))
                 .foregroundStyle(AppColors.error)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 12)
+                .padding(.horizontal, 16)
         } else {
             LazyVStack(spacing: 12) {
                 ForEach(viewModel.filteredExercises) { exercise in
@@ -245,7 +245,7 @@ private struct ExerciseFilterButton: View {
                 .foregroundStyle(isSelected ? Color.black.opacity(0.78) : AppColors.onSurfaceVariant)
                 .frame(minWidth: 50)
                 .frame(height: 25)
-                .padding(.horizontal, 8)
+                .padding(.horizontal, 16)
                 .background(isSelected ? AppColors.primary : AppColors.surfaceVariant.opacity(0.78))
                 .clipShape(Capsule())
         }
@@ -307,7 +307,7 @@ private struct ExerciseRow: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel(isSelected ? "Remove \(exercise.name)" : "Add \(exercise.name)")
-            .padding(.trailing, 14)
+            .padding(.trailing, 16)
         }
         .frame(minHeight: 66)
         .background(AppColors.surfaceVariant.opacity(0.32))
@@ -323,7 +323,7 @@ private struct ExerciseTag: View {
         Text(title.uppercased())
             .font(AppFonts.Body.bold(6.5))
             .foregroundStyle(isPrimary ? AppColors.secondary : AppColors.error)
-            .padding(.horizontal, 8)
+            .padding(.horizontal, 16)
             .frame(height: 17)
             .background((isPrimary ? AppColors.secondary : AppColors.error).opacity(0.1))
             .overlay(

@@ -42,17 +42,17 @@ struct LogInView: View {
                     VStack(alignment: .leading, spacing: 0) {
                         titleSection
                             .padding(.top, 24)
-                            .padding(.horizontal, 24)
+                            .padding(.horizontal, 16)
 
                         formSection
                             .padding(.top, 18)
-                            .padding(.horizontal, 24)
+                            .padding(.horizontal, 16)
 
                         Spacer(minLength: 24)
 
                         VStack(spacing: 14) {
                             primaryButton
-                                .padding(.horizontal, 24)
+                                .padding(.horizontal, 16)
 
                             footer
                                 .frame(maxWidth: .infinity)
@@ -120,7 +120,7 @@ private extension LogInView {
                 Text(errorMessage)
                     .font(AppFonts.Body.medium(12))
                     .foregroundStyle(AppColors.error)
-                    .padding(.leading, 8)
+                    .padding(.leading, 16)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -227,7 +227,7 @@ private extension LogInView {
                         .foregroundStyle(trailingColor)
                 }
             }
-            .padding(.horizontal, 18)
+            .padding(.horizontal, 16)
             .frame(height: 46)
             .background(AppColors.surfaceVariant.opacity(0.98))
             .overlay(
@@ -240,7 +240,7 @@ private extension LogInView {
                 Text(errorMessage)
                     .font(AppFonts.Body.medium(12))
                     .foregroundStyle(AppColors.error)
-                    .padding(.leading, 8)
+                    .padding(.leading, 16)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }

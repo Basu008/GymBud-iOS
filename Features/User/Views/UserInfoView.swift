@@ -63,7 +63,7 @@ struct UserInfoView: View {
                         saveButton
                             .padding(.bottom, 16)
                     }
-                    .padding(.horizontal, 24)
+                    .padding(.horizontal, 16)
                     .frame(maxWidth: .infinity, minHeight: safeHeight, alignment: .topLeading)
                 }
                 .scrollIndicators(.hidden)
@@ -234,7 +234,7 @@ private extension UserInfoView {
             .datePickerStyle(.compact)
             .tint(AppColors.primary)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 12)
+            .padding(.horizontal, 16)
             .frame(height: 50)
             .background(AppColors.surfaceVariant.opacity(0.88))
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
@@ -356,7 +356,7 @@ private extension UserInfoView {
                 Text(errorMessage)
                     .font(AppFonts.Body.medium(12))
                     .foregroundStyle(AppColors.error)
-                    .padding(.leading, 8)
+                    .padding(.leading, 16)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }

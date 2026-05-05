@@ -44,7 +44,7 @@ struct CustomExerciseView: View {
 
                         difficultyProfileCard
                     }
-                    .padding(.horizontal, 24)
+                    .padding(.horizontal, 16)
                     .padding(.top, 24)
                     .padding(.bottom, 116)
                 }
@@ -55,7 +55,7 @@ struct CustomExerciseView: View {
                 Spacer()
 
                 saveButton
-                    .padding(.horizontal, 28)
+                    .padding(.horizontal, 16)
                     .padding(.bottom, 12)
             }
         }
@@ -84,8 +84,8 @@ struct CustomExerciseView: View {
 
             Spacer()
         }
-        .padding(.leading, 12)
-        .padding(.trailing, 28)
+        .padding(.leading, 16)
+        .padding(.trailing, 16)
         .padding(.top, 17)
         .padding(.bottom, 17)
         .background(Color.black.opacity(0.78))
@@ -385,7 +385,7 @@ private struct SecondaryMusclesCard: View {
                         Text("+ Add Muscle")
                             .font(AppFonts.Body.bold(10))
                             .foregroundStyle(AppColors.onBackground.opacity(0.8))
-                            .padding(.horizontal, 13)
+                            .padding(.horizontal, 16)
                             .frame(height: 28)
                             .overlay(
                                 Capsule()
@@ -413,7 +413,7 @@ private struct MuscleChip: View {
                     .font(.system(size: 8, weight: .bold))
             }
             .foregroundStyle(AppColors.secondary)
-            .padding(.horizontal, 13)
+            .padding(.horizontal, 16)
             .frame(height: 28)
             .background(AppColors.secondary.opacity(0.12))
             .overlay(
@@ -446,7 +446,7 @@ private struct DifficultySelector: View {
                 }
             }
         }
-        .padding(.horizontal, 6)
+        .padding(.horizontal, 16)
     }
 }
 

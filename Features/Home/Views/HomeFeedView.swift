@@ -33,6 +33,7 @@ struct HomeFeedView: View {
             }
             .scrollIndicators(.hidden)
         }
+        .background(AppColors.background.ignoresSafeArea())
     }
 
     private func emptyCardTopPadding(for height: CGFloat) -> CGFloat {
@@ -128,7 +129,7 @@ private struct MetricTileView: View {
 
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, 16)
         .padding(.vertical, 14)
         .frame(maxWidth: .infinity, minHeight: 82, alignment: .topLeading)
         .background(Color.black.opacity(0.34))
@@ -222,7 +223,7 @@ private struct FollowPeopleEmptyView: View {
         }
         .frame(maxWidth: .infinity)
         .frame(minHeight: 245)
-        .padding(.horizontal, 18)
+        .padding(.horizontal, 16)
         .background(AppColors.surface.opacity(0.92))
         .overlay(
             RoundedRectangle(cornerRadius: 9, style: .continuous)
