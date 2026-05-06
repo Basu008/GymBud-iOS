@@ -12,8 +12,20 @@ struct AnalyticsView: View {
     @State private var workouts: [WorkoutLog] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var didLoadInitialData: Bool
 
     private let workoutService: any WorkoutServiceProtocol = WorkoutService()
+
+    init(
+        initialAnalytics: WorkoutAnalyticsPayload? = nil,
+        initialWorkouts: [WorkoutLog]? = nil,
+        initialErrorMessage: String? = nil
+    ) {
+        _analytics = State(initialValue: initialAnalytics)
+        _workouts = State(initialValue: initialWorkouts ?? [])
+        _errorMessage = State(initialValue: initialErrorMessage)
+        _didLoadInitialData = State(initialValue: initialAnalytics != nil || initialWorkouts != nil || initialErrorMessage != nil)
+    }
 
     var body: some View {
         NavigationStack {
@@ -38,6 +50,8 @@ struct AnalyticsView: View {
             }
             .navigationBarHidden(true)
             .task {
+                guard !didLoadInitialData else { return }
+                didLoadInitialData = true
                 await loadAnalytics()
             }
             .background(AppColors.background.ignoresSafeArea())
@@ -106,6 +120,7 @@ struct AnalyticsView: View {
                 Text("No workouts logged yet.")
                     .font(AppFonts.Body.bold(14))
                     .foregroundStyle(AppColors.onSurfaceVariant)
+                    .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity, minHeight: 92)
                     .background(AppColors.surfaceVariant.opacity(0.32))
                     .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
@@ -692,6 +707,8 @@ private struct AnalyticsMessageView: View {
             Text(title)
                 .font(AppFonts.Body.bold(15))
                 .foregroundStyle(AppColors.onBackground)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity, alignment: .center)
 
             Button(action: action) {
                 Text("TRY AGAIN")

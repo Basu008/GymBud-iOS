@@ -11,6 +11,15 @@ struct RoutineView: View {
     @StateObject private var viewModel = RoutineViewModel()
     @State private var isCreatingRoutine = false
     @State private var editingRoutine: Routine?
+    @State private var didLoadInitialData: Bool
+
+    init(initialRoutines: [Routine]? = nil, initialErrorMessage: String? = nil) {
+        _viewModel = StateObject(wrappedValue: RoutineViewModel(
+            initialRoutines: initialRoutines ?? [],
+            initialErrorMessage: initialErrorMessage
+        ))
+        _didLoadInitialData = State(initialValue: initialRoutines != nil || initialErrorMessage != nil)
+    }
 
     var body: some View {
         GeometryReader { geometry in
@@ -48,6 +57,8 @@ struct RoutineView: View {
         }
         .background(AppColors.background.ignoresSafeArea())
         .task {
+            guard !didLoadInitialData else { return }
+            didLoadInitialData = true
             await viewModel.loadRoutines()
         }
         .fullScreenCover(isPresented: $isCreatingRoutine, onDismiss: {
@@ -224,6 +235,8 @@ private struct RoutineMessageView: View {
             Text(title)
                 .font(AppFonts.Body.bold(15))
                 .foregroundStyle(AppColors.onBackground)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity, alignment: .center)
 
             if let actionTitle, let action {
                 Button(action: action) {

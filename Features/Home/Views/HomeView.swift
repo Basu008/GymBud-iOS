@@ -12,19 +12,22 @@ struct HomeView: View {
     @State private var selectedTab: HomeTab = .workout
     @ObservedObject private var currentUserStore: CurrentUserStore
     private let feedItems: [FeedActivity]? = nil
+    private let startupData: HomeStartupData?
     private let onLogOut: () -> Void
     private let bottomNavigationHeight: CGFloat = 64
     private let bottomNavigationBottomSpacing: CGFloat = 6
     private let contentBottomSpacing: CGFloat = 24
 
     @MainActor
-    init(onLogOut: @escaping () -> Void = {}) {
+    init(startupData: HomeStartupData? = nil, onLogOut: @escaping () -> Void = {}) {
         self.currentUserStore = CurrentUserStore.shared
+        self.startupData = startupData
         self.onLogOut = onLogOut
     }
 
-    init(currentUserStore: CurrentUserStore, onLogOut: @escaping () -> Void = {}) {
+    init(currentUserStore: CurrentUserStore, startupData: HomeStartupData? = nil, onLogOut: @escaping () -> Void = {}) {
         self.currentUserStore = currentUserStore
+        self.startupData = startupData
         self.onLogOut = onLogOut
     }
 
@@ -59,13 +62,29 @@ struct HomeView: View {
         case .home:
             HomeFeedView(feedItems: feedItems)
         case .workout:
-            WorkoutView()
+            WorkoutView(
+                initialRoutines: startupData?.workoutRoutines,
+                initialErrorMessage: startupData?.workoutErrorMessage
+            )
         case .routine:
-            RoutineView()
+            RoutineView(
+                initialRoutines: startupData?.routineRoutines,
+                initialErrorMessage: startupData?.routineErrorMessage
+            )
         case .analytics:
-            AnalyticsView()
+            AnalyticsView(
+                initialAnalytics: startupData?.analytics,
+                initialWorkouts: startupData?.analyticsWorkouts,
+                initialErrorMessage: startupData?.analyticsErrorMessage
+            )
         case .profile:
-            ProfileView(onLogOut: onLogOut)
+            ProfileView(
+                initialRecentWorkouts: startupData?.recentWorkouts,
+                initialPersonalRecordPage: startupData?.personalRecordPage,
+                initialErrorMessage: startupData?.profileErrorMessage,
+                initialPersonalRecordsErrorMessage: startupData?.personalRecordsErrorMessage,
+                onLogOut: onLogOut
+            )
         }
     }
 

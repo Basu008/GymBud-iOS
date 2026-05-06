@@ -19,6 +19,7 @@ struct ProfileView: View {
     @State private var personalRecordsErrorMessage: String?
     @State private var logoutErrorMessage: String?
     @State private var isShowingEditInfo = false
+    @State private var didLoadInitialData: Bool
 
     private let userService: any UserServiceProtocol
     private let workoutService: any WorkoutServiceProtocol
@@ -26,17 +27,32 @@ struct ProfileView: View {
     private let onLogOut: () -> Void
 
     @MainActor
-    init(onLogOut: @escaping () -> Void = {}) {
+    init(
+        initialRecentWorkouts: [WorkoutLog]? = nil,
+        initialPersonalRecordPage: PersonalRecordsPayload? = nil,
+        initialErrorMessage: String? = nil,
+        initialPersonalRecordsErrorMessage: String? = nil,
+        onLogOut: @escaping () -> Void = {}
+    ) {
         self.currentUserStore = CurrentUserStore.shared
         self.userService = UserService()
         self.workoutService = WorkoutService()
         self.authService = AuthService()
         self.onLogOut = onLogOut
+        _recentWorkouts = State(initialValue: initialRecentWorkouts ?? [])
+        _personalRecordPage = State(initialValue: initialPersonalRecordPage)
+        _errorMessage = State(initialValue: initialErrorMessage)
+        _personalRecordsErrorMessage = State(initialValue: initialPersonalRecordsErrorMessage)
+        _didLoadInitialData = State(initialValue: initialRecentWorkouts != nil || initialPersonalRecordPage != nil || initialErrorMessage != nil || initialPersonalRecordsErrorMessage != nil)
     }
 
     @MainActor
     init(
         currentUserStore: CurrentUserStore,
+        initialRecentWorkouts: [WorkoutLog]? = nil,
+        initialPersonalRecordPage: PersonalRecordsPayload? = nil,
+        initialErrorMessage: String? = nil,
+        initialPersonalRecordsErrorMessage: String? = nil,
         userService: any UserServiceProtocol = UserService(),
         workoutService: any WorkoutServiceProtocol = WorkoutService(),
         authService: any AuthServiceProtocol = AuthService(),
@@ -47,6 +63,11 @@ struct ProfileView: View {
         self.workoutService = workoutService
         self.authService = authService
         self.onLogOut = onLogOut
+        _recentWorkouts = State(initialValue: initialRecentWorkouts ?? [])
+        _personalRecordPage = State(initialValue: initialPersonalRecordPage)
+        _errorMessage = State(initialValue: initialErrorMessage)
+        _personalRecordsErrorMessage = State(initialValue: initialPersonalRecordsErrorMessage)
+        _didLoadInitialData = State(initialValue: initialRecentWorkouts != nil || initialPersonalRecordPage != nil || initialErrorMessage != nil || initialPersonalRecordsErrorMessage != nil)
     }
 
     var body: some View {
@@ -82,6 +103,8 @@ struct ProfileView: View {
             .background(AppColors.background.ignoresSafeArea())
         }
         .task {
+            guard !didLoadInitialData else { return }
+            didLoadInitialData = true
             await loadProfile()
         }
         .sheet(isPresented: $isShowingEditInfo) {
@@ -218,6 +241,7 @@ private extension ProfileView {
                 Text(errorMessage ?? "No recent sessions yet.")
                     .font(AppFonts.Body.bold(14))
                     .foregroundStyle(AppColors.onSurfaceVariant)
+                    .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity, minHeight: 74)
                     .background(AppColors.surfaceVariant.opacity(0.34))
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
@@ -490,6 +514,7 @@ private struct PersonalRecordsListView: View {
                         Text(errorMessage)
                             .font(AppFonts.Body.bold(14))
                             .foregroundStyle(AppColors.onSurfaceVariant)
+                            .multilineTextAlignment(.center)
                             .frame(maxWidth: .infinity, minHeight: 120)
                             .background(AppColors.surfaceVariant.opacity(0.34))
                             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
@@ -524,6 +549,7 @@ private struct PersonalRecordsListView: View {
                                 Text("No personal records yet.")
                                     .font(AppFonts.Body.bold(14))
                                     .foregroundStyle(AppColors.onSurfaceVariant)
+                                    .multilineTextAlignment(.center)
                                     .frame(maxWidth: .infinity, minHeight: 90)
                                     .background(AppColors.surfaceVariant.opacity(0.34))
                                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
@@ -729,7 +755,8 @@ private struct ProfileEditUserInfoView: View {
                             Text(errorMessage)
                                 .font(AppFonts.Body.bold(13))
                                 .foregroundStyle(AppColors.error)
-                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .multilineTextAlignment(.center)
+                                .frame(maxWidth: .infinity, alignment: .center)
                         }
 
                         saveButton

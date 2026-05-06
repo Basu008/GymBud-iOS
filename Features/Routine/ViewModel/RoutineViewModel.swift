@@ -24,6 +24,13 @@ final class RoutineViewModel: ObservableObject {
         self.routineService = RoutineService()
     }
 
+    init(initialRoutines: [Routine], initialErrorMessage: String?) {
+        self.routineService = RoutineService()
+        self.routines = initialRoutines
+        self.errorMessage = initialErrorMessage
+        self.canLoadMorePages = !initialRoutines.isEmpty
+    }
+
     init(routineService: any RoutineServiceProtocol) {
         self.routineService = routineService
     }

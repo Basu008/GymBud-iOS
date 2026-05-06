@@ -120,7 +120,9 @@ private extension LogInView {
                 Text(errorMessage)
                     .font(AppFonts.Body.medium(12))
                     .foregroundStyle(AppColors.error)
-                    .padding(.leading, 16)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.horizontal, 16)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }

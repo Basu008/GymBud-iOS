@@ -12,7 +12,14 @@ struct WorkoutView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var selectedRoutine: Routine?
+    @State private var didLoadInitialData: Bool
     private let routineService: any RoutineServiceProtocol = RoutineService()
+
+    init(initialRoutines: [Routine]? = nil, initialErrorMessage: String? = nil) {
+        _routines = State(initialValue: initialRoutines ?? [])
+        _errorMessage = State(initialValue: initialErrorMessage)
+        _didLoadInitialData = State(initialValue: initialRoutines != nil || initialErrorMessage != nil)
+    }
 
     var body: some View {
         GeometryReader { geometry in
@@ -43,6 +50,8 @@ struct WorkoutView: View {
         }
         .background(AppColors.background.ignoresSafeArea())
         .task {
+            guard !didLoadInitialData else { return }
+            didLoadInitialData = true
             await loadRoutines()
         }
         .fullScreenCover(item: $selectedRoutine) { routine in
@@ -152,6 +161,8 @@ private struct WorkoutMessageView: View {
             Text(title)
                 .font(AppFonts.Body.bold(15))
                 .foregroundStyle(AppColors.onBackground)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity, alignment: .center)
 
             if let actionTitle, let action {
                 Button(action: action) {

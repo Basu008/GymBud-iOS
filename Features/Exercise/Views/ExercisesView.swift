@@ -193,7 +193,8 @@ struct ExercisesView: View {
             Text(errorMessage)
                 .font(AppFonts.Body.bold(12))
                 .foregroundStyle(AppColors.error)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.horizontal, 16)
         } else {
             LazyVStack(spacing: 12) {
