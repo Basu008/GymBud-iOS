@@ -13,6 +13,7 @@ final class LogInViewModel: ObservableObject {
     @Published private(set) var isLoading = false
     @Published private(set) var didLogIn = false
     @Published private(set) var needsUserInfo = false
+    @Published private(set) var accessToken: String?
     @Published var errorMessage: String?
 
     private let authService: any AuthServiceProtocol
@@ -31,6 +32,7 @@ final class LogInViewModel: ObservableObject {
         isLoading = true
         didLogIn = false
         needsUserInfo = false
+        accessToken = nil
         errorMessage = nil
 
         defer {
@@ -44,6 +46,7 @@ final class LogInViewModel: ObservableObject {
             )
 
             CurrentUserStore.shared.update(user: response.user)
+            accessToken = response.accessToken
             didLogIn = true
             needsUserInfo = response.user.needsUserInfo
         } catch {

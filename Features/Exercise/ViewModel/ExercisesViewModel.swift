@@ -29,20 +29,23 @@ final class ExercisesViewModel: ObservableObject {
 
     private let service: any ExerciseReferenceServiceProtocol
     private let authTokenStore: any AuthTokenStoreProtocol
+    private let selectionLimit: Int?
     private var currentPage = 1
     private var canLoadMorePages = true
 
     init(
         selectedExercises: [Exercise] = [],
+        selectionLimit: Int? = nil,
         service: any ExerciseReferenceServiceProtocol = ExerciseReferenceService(),
         authTokenStore: any AuthTokenStoreProtocol = AuthTokenStore()
     ) {
         self.selectedExercises = selectedExercises
+        self.selectionLimit = selectionLimit
         self.service = service
         self.authTokenStore = authTokenStore
     }
 
-    func loadInitialData() async {
+    func loadInitialData(preserveExistingData: Bool = false) async {
         guard !isLoading else { return }
 
         isLoading = true
@@ -58,7 +61,10 @@ final class ExercisesViewModel: ObservableObject {
             async let exerciseValues = fetchExercises()
             async let categoryValues = service.categories()
 
-            applyFetchedExercises(try await exerciseValues)
+            let fetchedExercises = try await exerciseValues
+            if !(preserveExistingData && fetchedExercises.isEmpty && !exercises.isEmpty) {
+                applyFetchedExercises(fetchedExercises)
+            }
             categories = try await categoryValues
         } catch {
             errorMessage = "Unable to load exercises."
@@ -92,12 +98,24 @@ final class ExercisesViewModel: ObservableObject {
         if isSelected(exercise) {
             selectedExercises.removeAll { $0.id == exercise.id }
         } else {
+            if let selectionLimit, selectionLimit == 1 {
+                selectedExercises = [exercise]
+                return
+            }
+
+            if let selectionLimit, selectedExercises.count >= selectionLimit {
+                selectedExercises.removeFirst(selectedExercises.count - selectionLimit + 1)
+            }
+
             selectedExercises.append(exercise)
         }
     }
 
     func selectExercise(_ exercise: Exercise) {
         selectedExercises.removeAll { $0.id == exercise.id }
+        if let selectionLimit, selectedExercises.count >= selectionLimit {
+            selectedExercises.removeFirst(selectedExercises.count - selectionLimit + 1)
+        }
         selectedExercises.append(exercise)
     }
 

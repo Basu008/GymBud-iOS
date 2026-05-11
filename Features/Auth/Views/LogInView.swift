@@ -14,13 +14,13 @@ struct LogInView: View {
     @State private var attemptedSubmit = false
     let onCreateAccount: () -> Void
     let onNeedsUserInfo: () -> Void
-    let onLogInComplete: () -> Void
+    let onLogInComplete: (String) -> Void
 
     @MainActor
     init(
         onCreateAccount: @escaping () -> Void = {},
         onNeedsUserInfo: @escaping () -> Void = {},
-        onLogInComplete: @escaping () -> Void = {}
+        onLogInComplete: @escaping (String) -> Void = { _ in }
     ) {
         _viewModel = StateObject(wrappedValue: LogInViewModel())
         self.onCreateAccount = onCreateAccount
@@ -138,10 +138,8 @@ private extension LogInView {
 
                 guard viewModel.didLogIn else { return }
 
-                if viewModel.needsUserInfo {
-                    onNeedsUserInfo()
-                } else {
-                    onLogInComplete()
+                if let accessToken = viewModel.accessToken {
+                    onLogInComplete(accessToken)
                 }
             }
         } label: {

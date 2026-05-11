@@ -38,11 +38,12 @@ struct RootView: View {
                 authNavigationStack
             case .userInfo:
                 UserInfoView {
-                    showHomeAfterSplash()
+                    showHome()
                 }
             case .home:
                 HomeView(startupData: homeStartupData) {
                     CurrentUserStore.shared.clear()
+                    ActiveWorkoutProgressStore.shared.clear()
                     homeStartupData = nil
                     path.removeAll()
                     appDestination = .onboarding
@@ -79,11 +80,11 @@ private extension RootView {
                         },
                         onNeedsUserInfo: {
                             path.removeAll()
-                            appDestination = .userInfo
+                            showHomeImmediately()
                         },
-                        onLogInComplete: {
+                        onLogInComplete: { accessToken in
                             path.removeAll()
-                            showHomeAfterSplash()
+                            showHomeImmediately(accessToken: accessToken)
                         }
                     )
                 }
@@ -103,11 +104,18 @@ private extension RootView {
         }
     }
 
-    func showHomeAfterSplash() {
-        appDestination = .checkingSession
+    func showHome(accessToken: String? = nil) {
+        Task {
+            await prepareHomeAndShow(accessToken: accessToken)
+        }
+    }
+
+    func showHomeImmediately(accessToken: String? = nil) {
+        homeStartupData = nil
+        appDestination = .home
 
         Task {
-            await prepareHomeAndShow()
+            await loadHomeStartupDataIfPossible(accessToken: accessToken)
         }
     }
 
@@ -130,7 +138,7 @@ private extension RootView {
             if user.needsUserInfo {
                 appDestination = .userInfo
             } else {
-                await prepareHomeAndShow()
+                await prepareHomeAndShow(accessToken: accessToken)
             }
         } catch {
             CurrentUserStore.shared.clear()
@@ -140,8 +148,10 @@ private extension RootView {
     }
 
     @MainActor
-    func prepareHomeAndShow() async {
-        guard let accessToken = authService.storedAccessToken(),
+    func prepareHomeAndShow(accessToken suppliedAccessToken: String? = nil) async {
+        let accessToken = suppliedAccessToken ?? authService.storedAccessToken()
+
+        guard let accessToken,
               !accessToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         else {
             appDestination = .onboarding
@@ -150,6 +160,19 @@ private extension RootView {
 
         homeStartupData = await loadHomeStartupData(accessToken: accessToken)
         appDestination = .home
+    }
+
+    @MainActor
+    func loadHomeStartupDataIfPossible(accessToken suppliedAccessToken: String? = nil) async {
+        let accessToken = suppliedAccessToken ?? authService.storedAccessToken()
+
+        guard let accessToken,
+              !accessToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        else {
+            return
+        }
+
+        homeStartupData = await loadHomeStartupData(accessToken: accessToken)
     }
 
     func loadHomeStartupData(accessToken: String) async -> HomeStartupData {
@@ -163,7 +186,12 @@ private extension RootView {
             try await routineService.routines(page: 1, accessToken: accessToken)
         }
         async let analyticsResult: Result<WorkoutAnalyticsPayload, Error> = loadResult {
-            try await workoutService.analytics(accessToken: accessToken)
+            let queryRange = AnalyticsDateRangeOption.thisWeek.queryRange
+            return try await workoutService.analytics(
+                startDate: queryRange.startDate,
+                endDate: queryRange.endDate,
+                accessToken: accessToken
+            )
         }
         async let recentWorkoutsResult: Result<[WorkoutLog], Error> = loadResult {
             guard let userID else { return [] }

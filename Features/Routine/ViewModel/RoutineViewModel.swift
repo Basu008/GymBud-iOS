@@ -8,6 +8,10 @@
 import Combine
 import Foundation
 
+extension Notification.Name {
+    static let routinesDidChange = Notification.Name("routinesDidChange")
+}
+
 @MainActor
 final class RoutineViewModel: ObservableObject {
     @Published private(set) var routines: [Routine] = []
@@ -35,14 +39,13 @@ final class RoutineViewModel: ObservableObject {
         self.routineService = routineService
     }
 
-    func loadRoutines() async {
+    func loadRoutines(preserveExistingData: Bool = false) async {
         guard !isLoading else { return }
 
         guard let accessToken = routineService.storedAccessToken(),
               !accessToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         else {
             errorMessage = "Please log in again to view routines."
-            routines = []
             return
         }
 
@@ -56,11 +59,13 @@ final class RoutineViewModel: ObservableObject {
         }
 
         do {
-            routines = try await routineService.routines(page: currentPage, accessToken: accessToken)
+            let refreshedRoutines = try await routineService.routines(page: currentPage, accessToken: accessToken)
+            routines = refreshedRoutines
             canLoadMorePages = !routines.isEmpty
         } catch {
-            routines = []
-            errorMessage = "Unable to load routines."
+            if routines.isEmpty {
+                errorMessage = "Unable to load routines."
+            }
         }
     }
 
@@ -114,7 +119,17 @@ final class RoutineViewModel: ObservableObject {
 
         do {
             let deletedID = try await routineService.deleteRoutine(id: routine.id, accessToken: accessToken)
-            routines.removeAll { $0.id == deletedID }
+            RoutineListChangeStore.shared.recordDeletedRoutineID(routine.id)
+            if ActiveWorkoutProgressStore.shared.load()?.routineID == routine.id {
+                ActiveWorkoutProgressStore.shared.clear()
+            }
+            routines.removeAll { $0.id == deletedID || $0.id == routine.id }
+            NotificationCenter.default.post(
+                name: .routinesDidChange,
+                object: nil,
+                userInfo: ["deletedRoutineID": routine.id]
+            )
+            AppDataRefreshCenter.notifyChange(.routineDeleted, userInfo: ["routineID": routine.id])
         } catch {
             errorMessage = "Unable to delete routine."
         }

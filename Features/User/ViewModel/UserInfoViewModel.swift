@@ -83,6 +83,7 @@ final class UserInfoViewModel: ObservableObject {
             )
 
             _ = try await userService.refreshCurrentUser(accessToken: accessToken)
+            AppDataRefreshCenter.notifyChange(.profileUpdated)
 
             return true
         } catch {

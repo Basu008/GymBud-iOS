@@ -51,6 +51,7 @@ struct RoutineView: View {
                 .frame(maxWidth: .infinity, minHeight: geometry.size.height, alignment: .top)
             }
             .scrollIndicators(.hidden)
+            .scrollBounceBehavior(.always)
             .refreshable {
                 await viewModel.loadRoutines()
             }
@@ -61,18 +62,10 @@ struct RoutineView: View {
             didLoadInitialData = true
             await viewModel.loadRoutines()
         }
-        .fullScreenCover(isPresented: $isCreatingRoutine, onDismiss: {
-            Task {
-                await viewModel.loadRoutines()
-            }
-        }) {
+        .fullScreenCover(isPresented: $isCreatingRoutine) {
             NewRoutineView()
         }
-        .fullScreenCover(item: $editingRoutine, onDismiss: {
-            Task {
-                await viewModel.loadRoutines()
-            }
-        }) { routine in
+        .fullScreenCover(item: $editingRoutine) { routine in
             EditRoutineView(routine: routine)
         }
     }

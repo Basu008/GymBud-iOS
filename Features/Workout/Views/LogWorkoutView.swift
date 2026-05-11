@@ -16,30 +16,52 @@ struct LogWorkoutView: View {
     @State private var currentExerciseIndex = 0
     @State private var previousWorkout: WorkoutLog?
     @State private var elapsedSeconds = 0
-    @State private var isTimerPaused = false
-    @State private var pausedSeconds = 0
-    @State private var pauseStartedAt: Date?
     @State private var draggedExerciseID: UUID?
     @State private var errorMessage: String?
     @State private var isLoadingPrevious = false
     @State private var isCompletingWorkout = false
+    @State private var didCompleteWorkout = false
     @State private var completedWorkout: WorkoutLog?
     @State private var isShowingSkipConfirmation = false
+    @State private var isShowingRoutineUpdateConfirmation = false
+    @State private var replacingExerciseIndex: Int?
     @State private var skippedExerciseIDs: Set<String> = []
+    @State private var hasReplacedExercises = false
     private let routine: Routine
     private let workoutService: any WorkoutServiceProtocol
-    private let startedAt = Date()
+    private let routineService: any RoutineServiceProtocol
+    private let progressStore: any ActiveWorkoutProgressStoreProtocol
+    private let startedAt: Date
+    private let shouldLoadPreviousWorkout: Bool
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     init(
         routine: Routine,
-        workoutService: any WorkoutServiceProtocol = WorkoutService()
+        activeProgress: ActiveWorkoutProgress? = nil,
+        progressStore: any ActiveWorkoutProgressStoreProtocol = ActiveWorkoutProgressStore.shared,
+        workoutService: any WorkoutServiceProtocol = WorkoutService(),
+        routineService: any RoutineServiceProtocol = RoutineService()
     ) {
         self.routine = routine
+        self.progressStore = progressStore
         self.workoutService = workoutService
-        _exercises = State(initialValue: routine.exercises
-            .sorted { $0.orderIndex < $1.orderIndex }
-            .map(LogWorkoutExerciseDraft.init(routineExercise:)))
+        self.routineService = routineService
+        if let activeProgress, activeProgress.routineID == routine.id {
+            startedAt = activeProgress.startedAt
+            shouldLoadPreviousWorkout = false
+            _elapsedSeconds = State(initialValue: max(0, activeProgress.cachedElapsedSeconds))
+            _currentExerciseIndex = State(initialValue: min(activeProgress.currentExerciseIndex, max(activeProgress.exercises.count - 1, 0)))
+            _skippedExerciseIDs = State(initialValue: activeProgress.skippedExerciseIDs)
+            _hasReplacedExercises = State(initialValue: activeProgress.hasReplacedExercises)
+            _exercises = State(initialValue: activeProgress.exercises.map(LogWorkoutExerciseDraft.init(progress:)))
+        } else {
+            startedAt = Date()
+            shouldLoadPreviousWorkout = true
+            _elapsedSeconds = State(initialValue: 0)
+            _exercises = State(initialValue: routine.exercises
+                .sorted { $0.orderIndex < $1.orderIndex }
+                .map(LogWorkoutExerciseDraft.init(routineExercise:)))
+        }
     }
 
     var body: some View {
@@ -65,15 +87,20 @@ struct LogWorkoutView: View {
             bottomActionBar
         }
         .task {
-            updateElapsedSeconds()
-            await loadPreviousWorkout()
+            if shouldLoadPreviousWorkout {
+                await loadPreviousWorkout()
+            }
         }
         .onReceive(timer) { _ in
-            updateElapsedSeconds()
+            incrementElapsedSeconds()
         }
         .onChange(of: scenePhase) { _, phase in
-            guard phase == .active else { return }
-            updateElapsedSeconds()
+            if phase != .active {
+                cacheCurrentProgress()
+            }
+        }
+        .onDisappear {
+            cacheCurrentProgress()
         }
         .alert("Skip Exercise?", isPresented: $isShowingSkipConfirmation) {
             Button("Cancel", role: .cancel) {}
@@ -83,11 +110,33 @@ struct LogWorkoutView: View {
         } message: {
             Text("This exercise will be removed from your workout log.")
         }
+        .alert("Update Routine?", isPresented: $isShowingRoutineUpdateConfirmation) {
+            Button("No") {
+                completeWorkout(updateRoutineFirst: false)
+            }
+            Button("Yes") {
+                completeWorkout(updateRoutineFirst: true)
+            }
+        } message: {
+            Text("You replaced one or more exercises. Do you want to update this routine before saving the workout?")
+        }
         .fullScreenCover(item: $completedWorkout) { workout in
             CompleteWorkoutSummaryView(workout: workout, routine: routine) {
                 completedWorkout = nil
                 dismiss()
             }
+        }
+        .fullScreenCover(
+            isPresented: Binding(
+                get: { replacingExerciseIndex != nil },
+                set: { isPresented in
+                    if !isPresented {
+                        replacingExerciseIndex = nil
+                    }
+                }
+            )
+        ) {
+            exerciseReplacementView
         }
     }
 
@@ -104,7 +153,7 @@ struct LogWorkoutView: View {
             GBPrimaryButton(
                 title: primaryActionTitle,
                 isLoading: isCompletingWorkout,
-                isDisabled: exercises.isEmpty || isTimerPaused
+                isDisabled: exercises.isEmpty
             ) {
                 finishCurrentExercise()
             }
@@ -175,8 +224,8 @@ struct LogWorkoutView: View {
                         Spacer(minLength: 12)
 
                         HStack(spacing: 8) {
+                            replaceButton(for: currentExerciseIndex)
                             skipButton
-                            pauseButton
                         }
                     }
 
@@ -194,10 +243,9 @@ struct LogWorkoutView: View {
                         ) {
                             exercises[currentExerciseIndex].sets[setIndex].hasUserEdited = true
                         } onToggleLog: {
-                            guard !isTimerPaused else { return }
                             exercises[currentExerciseIndex].sets[setIndex].isCompleted.toggle()
+                            cacheCurrentProgress()
                         }
-                        .disabled(isTimerPaused)
                     }
                 }
             }
@@ -219,6 +267,7 @@ struct LogWorkoutView: View {
         ) {
             guard !exercises.isEmpty else { return }
             exercises[currentExerciseIndex].sets.append(exercises[currentExerciseIndex].nextSet)
+            cacheCurrentProgress()
         }
     }
 
@@ -277,16 +326,21 @@ struct LogWorkoutView: View {
                     .foregroundStyle(AppColors.onSurfaceVariant)
 
                 VStack(spacing: 10) {
-                    ForEach(upNextExercises) { exercise in
-                        LogWorkoutUpNextCard(exercise: exercise)
+                    ForEach(Array(exercises.indices.dropFirst(currentExerciseIndex + 1)), id: \.self) { exerciseIndex in
+                        LogWorkoutUpNextCard(
+                            exercise: exercises[exerciseIndex],
+                            canReplace: canReplaceExercise(at: exerciseIndex)
+                        ) {
+                            beginReplacingExercise(at: exerciseIndex)
+                        }
                             .onDrag {
-                                draggedExerciseID = exercise.id
-                                return NSItemProvider(object: exercise.id.uuidString as NSString)
+                                draggedExerciseID = exercises[exerciseIndex].id
+                                return NSItemProvider(object: exercises[exerciseIndex].id.uuidString as NSString)
                             }
                             .onDrop(
                                 of: [.text],
                                 delegate: LogWorkoutExerciseDropDelegate(
-                                    exercise: exercise,
+                                    exercise: exercises[exerciseIndex],
                                     lockedUpperBound: currentExerciseIndex,
                                     exercises: $exercises,
                                     draggedExerciseID: $draggedExerciseID
@@ -316,22 +370,43 @@ struct LogWorkoutView: View {
         .opacity(exercises.isEmpty || isCompletingWorkout ? 0.6 : 1)
     }
 
-    private var pauseButton: some View {
-        Button {
-            toggleTimerPause()
+    private func replaceButton(for exerciseIndex: Int) -> some View {
+        let canReplace = canReplaceExercise(at: exerciseIndex)
+
+        return Button {
+            beginReplacingExercise(at: exerciseIndex)
         } label: {
-            Text(isTimerPaused ? "RESUME" : "PAUSE")
+            Text("REPLACE")
                 .font(AppFonts.Body.bold(12))
                 .tracking(1.4)
-                .foregroundStyle(isTimerPaused ? AppColors.primaryFixed : AppColors.onSurfaceVariant)
+                .foregroundStyle(canReplace ? AppColors.primary : AppColors.onSurfaceVariant.opacity(0.7))
                 .padding(.horizontal, 16)
                 .frame(height: 34)
-                .background((isTimerPaused ? AppColors.primaryFixed : AppColors.surfaceBright).opacity(isTimerPaused ? 0.12 : 0.9))
+                .background(canReplace ? AppColors.primary.opacity(0.12) : AppColors.surfaceBright.opacity(0.42))
                 .clipShape(Capsule())
         }
         .buttonStyle(.plain)
-        .disabled(exercises.isEmpty || isCompletingWorkout)
-        .opacity(exercises.isEmpty || isCompletingWorkout ? 0.6 : 1)
+        .disabled(!canReplace || isCompletingWorkout)
+        .opacity(!canReplace || isCompletingWorkout ? 0.55 : 1)
+    }
+
+    @ViewBuilder
+    private var exerciseReplacementView: some View {
+        if let replacingExerciseIndex,
+           exercises.indices.contains(replacingExerciseIndex) {
+            ExercisesView(
+                selectedExercises: [exercises[replacingExerciseIndex].exerciseSelection],
+                selectionLimit: 1,
+                onCancel: {
+                    self.replacingExerciseIndex = nil
+                },
+                onSave: { selectedExercises in
+                    guard let selectedExercise = selectedExercises.first else { return }
+                    replaceExercise(at: replacingExerciseIndex, with: selectedExercise)
+                    self.replacingExerciseIndex = nil
+                }
+            )
+        }
     }
 
     private var currentExercise: LogWorkoutExerciseDraft {
@@ -387,10 +462,11 @@ struct LogWorkoutView: View {
     private func removeLastSet() {
         guard canRemoveLastSet else { return }
         exercises[currentExerciseIndex].sets.removeLast()
+        cacheCurrentProgress()
     }
 
     private func finishCurrentExercise() {
-        guard !exercises.isEmpty, !isCompletingWorkout, !isTimerPaused else { return }
+        guard !exercises.isEmpty, !isCompletingWorkout else { return }
 
         for index in exercises[currentExerciseIndex].sets.indices {
             exercises[currentExerciseIndex].sets[index].isCompleted = true
@@ -398,10 +474,12 @@ struct LogWorkoutView: View {
 
         if currentExerciseIndex < exercises.count - 1 {
             currentExerciseIndex += 1
+            cacheCurrentProgress()
             return
         }
 
-        completeWorkout()
+        cacheCurrentProgress()
+        requestWorkoutCompletion()
     }
 
     private func skipCurrentExercise() {
@@ -411,43 +489,74 @@ struct LogWorkoutView: View {
         exercises.remove(at: currentExerciseIndex)
 
         guard !exercises.isEmpty else {
-            completeWorkout()
+            cacheCurrentProgress()
+            requestWorkoutCompletion()
             return
         }
 
         currentExerciseIndex = min(currentExerciseIndex, exercises.count - 1)
+        cacheCurrentProgress()
     }
 
-    private func toggleTimerPause() {
-        let now = Date()
+    private func canReplaceExercise(at index: Int) -> Bool {
+        guard exercises.indices.contains(index) else { return false }
+        return !exercises[index].sets.contains { $0.isCompleted }
+    }
 
-        if isTimerPaused {
-            if let pauseStartedAt {
-                pausedSeconds += max(0, Int(now.timeIntervalSince(pauseStartedAt)))
-            }
-            pauseStartedAt = nil
-            isTimerPaused = false
-        } else {
-            updateElapsedSeconds(now: now)
-            pauseStartedAt = now
-            isTimerPaused = true
+    private func beginReplacingExercise(at index: Int) {
+        guard canReplaceExercise(at: index), !isCompletingWorkout else { return }
+        replacingExerciseIndex = index
+    }
+
+    private func replaceExercise(at index: Int, with exercise: Exercise) {
+        guard canReplaceExercise(at: index) else { return }
+        exercises[index].replace(with: exercise)
+        hasReplacedExercises = true
+        cacheCurrentProgress()
+    }
+
+    private func incrementElapsedSeconds() {
+        guard scenePhase == .active, !didCompleteWorkout else { return }
+        elapsedSeconds += 1
+    }
+
+    private func cacheCurrentProgress() {
+        guard !didCompleteWorkout else { return }
+
+        guard !exercises.isEmpty else {
+            progressStore.clear()
+            return
         }
 
-        updateElapsedSeconds(now: now)
-    }
-
-    private func updateElapsedSeconds(now: Date = Date()) {
-        let activePausedSeconds: Int
-        if let pauseStartedAt {
-            activePausedSeconds = max(0, Int(now.timeIntervalSince(pauseStartedAt)))
-        } else {
-            activePausedSeconds = 0
+        guard exercises.flatMap(\.sets).contains(where: \.isCompleted) else {
+            progressStore.clear()
+            return
         }
 
-        elapsedSeconds = max(0, Int(now.timeIntervalSince(startedAt)) - pausedSeconds - activePausedSeconds)
+        progressStore.save(
+            ActiveWorkoutProgress(
+                routineID: routine.id,
+                routineName: routine.name,
+                startedAt: startedAt,
+                currentExerciseIndex: min(currentExerciseIndex, max(exercises.count - 1, 0)),
+                skippedExerciseIDs: skippedExerciseIDs,
+                exercises: exercises.map(\.progressSnapshot),
+                cachedElapsedSeconds: elapsedSeconds,
+                hasReplacedExercises: hasReplacedExercises,
+                updatedAt: Date()
+            )
+        )
     }
 
-    private func completeWorkout() {
+    private func requestWorkoutCompletion() {
+        if hasReplacedExercises {
+            isShowingRoutineUpdateConfirmation = true
+        } else {
+            completeWorkout(updateRoutineFirst: false)
+        }
+    }
+
+    private func completeWorkout(updateRoutineFirst: Bool) {
         guard let accessToken = workoutService.storedAccessToken(),
               !accessToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         else {
@@ -458,14 +567,15 @@ struct LogWorkoutView: View {
         isCompletingWorkout = true
         errorMessage = nil
 
+        let includedExercises = exercises.filter { !skippedExerciseIDs.contains($0.exerciseID) }
+
+        let timerEndDate = startedAt.addingTimeInterval(TimeInterval(max(0, elapsedSeconds)))
         let request = CompleteWorkoutRequest(
             routineID: routine.id,
             startTime: Self.isoString(from: startedAt),
-            endTime: Self.isoString(from: Date()),
+            endTime: Self.isoString(from: timerEndDate),
             visibility: "all",
-            exercises: exercises
-                .filter { !skippedExerciseIDs.contains($0.exerciseID) }
-                .map { exercise in
+            exercises: includedExercises.map { exercise in
                 CompleteWorkoutExerciseRequest(
                     exerciseID: exercise.exerciseID,
                     sets: exercise.sets.map { set in
@@ -481,13 +591,42 @@ struct LogWorkoutView: View {
 
         Task {
             do {
-                completedWorkout = try await workoutService.completeWorkout(request, accessToken: accessToken)
+                if updateRoutineFirst {
+                    let routineRequest = makeRoutineUpdateRequest()
+                    _ = try await routineService.updateRoutine(id: routine.id, request: routineRequest, accessToken: accessToken)
+                }
+
+                let workout = try await workoutService.completeWorkout(request, accessToken: accessToken)
+                didCompleteWorkout = true
+                progressStore.clear()
+                completedWorkout = workout
+                AppDataRefreshCenter.notifyChange(.workoutCompleted, userInfo: ["workoutID": workout.id])
             } catch {
                 errorMessage = "Unable to complete workout."
             }
 
             isCompletingWorkout = false
         }
+    }
+
+    private func makeRoutineUpdateRequest() -> CreateRoutineRequest {
+        CreateRoutineRequest(
+            name: routine.name,
+            exercises: exercises.map { exercise in
+                CreateRoutineExerciseRequest(
+                    exerciseID: exercise.exerciseID,
+                    orderIndex: exercise.orderIndex,
+                    sets: exercise.sets.map { set in
+                        CreateRoutineSetRequest(
+                            setNumber: set.setNumber,
+                            minReps: set.plannedMinReps,
+                            maxReps: set.plannedMaxReps,
+                            targetWeightKG: set.plannedWeightKG
+                        )
+                    }
+                )
+            }
+        )
     }
 
     private func loadPreviousWorkout() async {
@@ -724,6 +863,8 @@ private struct LogWorkoutIntField: View {
 
 private struct LogWorkoutUpNextCard: View {
     let exercise: LogWorkoutExerciseDraft
+    let canReplace: Bool
+    let onReplace: () -> Void
 
     var body: some View {
         HStack(spacing: 14) {
@@ -749,6 +890,18 @@ private struct LogWorkoutUpNextCard: View {
             }
 
             Spacer()
+
+            Button(action: onReplace) {
+                Image(systemName: "arrow.triangle.2.circlepath")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(canReplace ? AppColors.primary : AppColors.onSurfaceVariant.opacity(0.62))
+                    .frame(width: 32, height: 32)
+                    .background((canReplace ? AppColors.primary : AppColors.surfaceBright).opacity(canReplace ? 0.12 : 0.42))
+                    .clipShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .disabled(!canReplace)
+            .accessibilityLabel("Replace \(exercise.name)")
 
             Image(systemName: "line.3.horizontal")
                 .font(.system(size: 16, weight: .semibold))
@@ -788,17 +941,25 @@ private struct CompleteWorkoutPlaceholderView: View {
 
 private struct LogWorkoutExerciseDraft: Identifiable {
     let id = UUID()
-    let exerciseID: String
-    let name: String
-    let movementMethod: String?
-    let equipment: String?
+    var exerciseID: String
+    var orderIndex: Int
+    var name: String
+    var movementMethod: String?
+    var equipment: String?
+    var primaryMuscle: String?
+    var secondaryMuscles: [String]
+    var difficulty: String?
     var sets: [LogWorkoutSetDraft]
 
     nonisolated init(routineExercise: RoutineExercise) {
         exerciseID = routineExercise.exerciseID
+        orderIndex = routineExercise.orderIndex
         name = routineExercise.exercise.name
         movementMethod = routineExercise.exercise.movementMode
         equipment = routineExercise.exercise.equipment
+        primaryMuscle = routineExercise.exercise.primaryMuscle
+        secondaryMuscles = routineExercise.exercise.secondaryMuscles
+        difficulty = routineExercise.exercise.difficulty
         let orderedSets = routineExercise.sets.sorted { $0.setNumber < $1.setNumber }
         sets = orderedSets.isEmpty
             ? [LogWorkoutSetDraft(setNumber: 1, plannedMinReps: 8, plannedMaxReps: 10, plannedWeightKG: 0)]
@@ -810,6 +971,54 @@ private struct LogWorkoutExerciseDraft: Identifiable {
                     plannedWeightKG: set.targetWeightKG
                 )
             }
+    }
+
+    nonisolated init(progress: ActiveWorkoutExerciseProgress) {
+        exerciseID = progress.exerciseID
+        orderIndex = progress.orderIndex
+        name = progress.name
+        movementMethod = progress.movementMethod
+        equipment = progress.equipment
+        primaryMuscle = progress.primaryMuscle
+        secondaryMuscles = progress.secondaryMuscles
+        difficulty = progress.difficulty
+        sets = progress.sets.map(LogWorkoutSetDraft.init(progress:))
+    }
+
+    var progressSnapshot: ActiveWorkoutExerciseProgress {
+        ActiveWorkoutExerciseProgress(
+            exerciseID: exerciseID,
+            orderIndex: orderIndex,
+            name: name,
+            movementMethod: movementMethod,
+            equipment: equipment,
+            primaryMuscle: primaryMuscle,
+            secondaryMuscles: secondaryMuscles,
+            difficulty: difficulty,
+            sets: sets.map(\.progressSnapshot)
+        )
+    }
+
+    var exerciseSelection: Exercise {
+        Exercise(
+            id: exerciseID,
+            name: name,
+            equipment: equipment,
+            primaryMuscle: primaryMuscle,
+            secondaryMuscles: secondaryMuscles,
+            difficulty: difficulty,
+            movementMode: movementMethod
+        )
+    }
+
+    mutating func replace(with exercise: Exercise) {
+        exerciseID = exercise.id
+        name = exercise.name
+        movementMethod = exercise.movementMode
+        equipment = exercise.equipment
+        primaryMuscle = exercise.primaryMuscle
+        secondaryMuscles = exercise.secondaryMuscles
+        difficulty = exercise.difficulty
     }
 
     var nextSet: LogWorkoutSetDraft {
@@ -859,6 +1068,34 @@ private struct LogWorkoutSetDraft: Identifiable {
         self.plannedWeightKG = plannedWeightKG
         repsPlaceholderText = "\(plannedMaxReps)"
         weightPlaceholderText = Self.formattedWeight(plannedWeightKG)
+    }
+
+    nonisolated init(progress: ActiveWorkoutSetProgress) {
+        setNumber = progress.setNumber
+        plannedMinReps = progress.plannedMinReps
+        plannedMaxReps = progress.plannedMaxReps
+        plannedWeightKG = progress.plannedWeightKG
+        actualRepsText = progress.actualRepsText
+        actualWeightText = progress.actualWeightText
+        repsPlaceholderText = progress.repsPlaceholderText
+        weightPlaceholderText = progress.weightPlaceholderText
+        isCompleted = progress.isCompleted
+        hasUserEdited = progress.hasUserEdited
+    }
+
+    var progressSnapshot: ActiveWorkoutSetProgress {
+        ActiveWorkoutSetProgress(
+            setNumber: setNumber,
+            plannedMinReps: plannedMinReps,
+            plannedMaxReps: plannedMaxReps,
+            plannedWeightKG: plannedWeightKG,
+            actualRepsText: actualRepsText,
+            actualWeightText: actualWeightText,
+            repsPlaceholderText: repsPlaceholderText,
+            weightPlaceholderText: weightPlaceholderText,
+            isCompleted: isCompleted,
+            hasUserEdited: hasUserEdited
+        )
     }
 
     var effectiveReps: Int {

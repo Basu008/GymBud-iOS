@@ -209,6 +209,7 @@ struct NewRoutineView: View {
         Task {
             do {
                 _ = try await routineService.createRoutine(request, accessToken: accessToken)
+                AppDataRefreshCenter.notifyChange(.routineCreated)
                 dismiss()
             } catch {
                 saveErrorMessage = "Unable to save routine."
@@ -491,6 +492,7 @@ struct EditRoutineView: View {
         Task {
             do {
                 _ = try await routineService.updateRoutine(id: routine.id, request: request, accessToken: accessToken)
+                AppDataRefreshCenter.notifyChange(.routineUpdated, userInfo: ["routineID": routine.id])
                 dismiss()
             } catch {
                 saveErrorMessage = "Unable to update routine."

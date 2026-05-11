@@ -63,6 +63,7 @@ nonisolated final class AuthService: Sendable {
         )
 
         let payload = try response.requirePayload()
+        tokenStore.clearAccessToken()
         tokenStore.saveAccessToken(payload.accessToken)
         return payload
     }
@@ -72,7 +73,7 @@ nonisolated final class AuthService: Sendable {
     }
 
     nonisolated func logOut(accessToken: String) async throws {
-        _ = try await apiClient.request(AuthEndpoint.logOut(accessToken: accessToken))
+        _ = try? await apiClient.request(AuthEndpoint.logOut(accessToken: accessToken))
         tokenStore.clearAccessToken()
     }
 }

@@ -12,7 +12,7 @@ struct AnalyticsView: View {
     @State private var workouts: [WorkoutLog] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
-    @State private var didLoadInitialData: Bool
+    @State private var selectedDateRange = AnalyticsDateRangeOption.thisWeek
 
     private let workoutService: any WorkoutServiceProtocol = WorkoutService()
 
@@ -24,7 +24,6 @@ struct AnalyticsView: View {
         _analytics = State(initialValue: initialAnalytics)
         _workouts = State(initialValue: initialWorkouts ?? [])
         _errorMessage = State(initialValue: initialErrorMessage)
-        _didLoadInitialData = State(initialValue: initialAnalytics != nil || initialWorkouts != nil || initialErrorMessage != nil)
     }
 
     var body: some View {
@@ -32,9 +31,7 @@ struct AnalyticsView: View {
             GeometryReader { geometry in
                 ScrollView {
                     VStack(alignment: .leading, spacing: 22) {
-                        Text("IMPACT TILL NOW")
-                            .font(AppFonts.Headline.bold(26))
-                            .foregroundStyle(AppColors.onBackground)
+                        analyticsHeader
                             .padding(.top, 24)
 
                         content
@@ -44,17 +41,74 @@ struct AnalyticsView: View {
                     .frame(maxWidth: .infinity, minHeight: geometry.size.height, alignment: .top)
                 }
                 .scrollIndicators(.hidden)
+                .scrollBounceBehavior(.always)
                 .refreshable {
                     await loadAnalytics()
                 }
             }
             .navigationBarHidden(true)
-            .task {
-                guard !didLoadInitialData else { return }
-                didLoadInitialData = true
-                await loadAnalytics()
+            .onChange(of: selectedDateRange) { _, _ in
+                Task {
+                    await loadAnalytics()
+                }
             }
             .background(AppColors.background.ignoresSafeArea())
+        }
+    }
+
+    private var analyticsHeader: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("IMPACT TILL NOW")
+                .font(AppFonts.Headline.bold(26))
+                .foregroundStyle(AppColors.onBackground)
+
+            VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(selectedDateRange.formattedDateRange)
+                        .font(AppFonts.Body.bold(14))
+                        .foregroundStyle(AppColors.onBackground)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.76)
+
+                    Text("DATE RANGE")
+                        .font(AppFonts.Body.bold(10))
+                        .tracking(1.1)
+                        .foregroundStyle(AppColors.onSurfaceVariant)
+                }
+
+                Menu {
+                    ForEach(AnalyticsDateRangeOption.allCases) { option in
+                        Button {
+                            selectedDateRange = option
+                        } label: {
+                            if option == selectedDateRange {
+                                Label(option.title, systemImage: "checkmark")
+                            } else {
+                                Text(option.title)
+                            }
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 8) {
+                        Text(selectedDateRange.title)
+                            .font(AppFonts.Body.bold(12))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.74)
+
+                        Spacer(minLength: 8)
+
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 11, weight: .bold))
+                    }
+                    .foregroundStyle(AppColors.primary)
+                    .padding(.horizontal, 12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(height: 38)
+                    .background(AppColors.surfaceVariant.opacity(0.72))
+                    .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+                }
+                .buttonStyle(.plain)
+            }
         }
     }
 
@@ -156,14 +210,109 @@ struct AnalyticsView: View {
         errorMessage = nil
 
         do {
-            let analytics = try await workoutService.analytics(accessToken: accessToken)
+            let queryRange = selectedDateRange.queryRange
+            let analytics = try await workoutService.analytics(
+                startDate: queryRange.startDate,
+                endDate: queryRange.endDate,
+                accessToken: accessToken
+            )
             self.analytics = analytics
-            workouts = try await workoutService.userWorkouts(userID: analytics.userID, page: 1, accessToken: accessToken)
+            do {
+                workouts = try await workoutService.userWorkouts(userID: analytics.userID, page: 1, accessToken: accessToken)
+            } catch {
+                if workouts.isEmpty {
+                    errorMessage = "Unable to load workout history."
+                }
+            }
         } catch {
-            errorMessage = "Unable to load analytics."
+            if analytics == nil {
+                errorMessage = "Unable to load analytics."
+            }
         }
 
         isLoading = false
+    }
+}
+
+enum AnalyticsDateRangeOption: String, CaseIterable, Identifiable {
+    case thisWeek
+    case thisMonth
+    case lastThreeMonths
+    case lastSixMonths
+    case thisYear
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .thisWeek:
+            return "This Week"
+        case .thisMonth:
+            return "This Month"
+        case .lastThreeMonths:
+            return "Last 3 Months"
+        case .lastSixMonths:
+            return "Last 6 Months"
+        case .thisYear:
+            return "This Year"
+        }
+    }
+
+    var queryRange: (startDate: String, endDate: String) {
+        let dates = dateRange
+        return (
+            AnalyticsDateRangeFormatters.queryDate(dates.start),
+            AnalyticsDateRangeFormatters.queryDate(dates.end)
+        )
+    }
+
+    var formattedDateRange: String {
+        let dates = dateRange
+        return "\(AnalyticsDateRangeFormatters.displayDate(dates.start)) - \(AnalyticsDateRangeFormatters.displayDate(dates.end))"
+    }
+
+    private var dateRange: (start: Date, end: Date) {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+
+        switch self {
+        case .thisWeek:
+            let weekday = calendar.component(.weekday, from: today)
+            let daysSinceMonday = (weekday + 5) % 7
+            let start = calendar.date(byAdding: .day, value: -daysSinceMonday, to: today) ?? today
+            return (start, today)
+        case .thisMonth:
+            let components = calendar.dateComponents([.year, .month], from: today)
+            let start = calendar.date(from: components) ?? today
+            return (start, today)
+        case .lastThreeMonths:
+            let start = calendar.date(byAdding: .month, value: -3, to: today) ?? today
+            return (start, today)
+        case .lastSixMonths:
+            let start = calendar.date(byAdding: .month, value: -6, to: today) ?? today
+            return (start, today)
+        case .thisYear:
+            let components = calendar.dateComponents([.year], from: today)
+            let start = calendar.date(from: components) ?? today
+            return (start, today)
+        }
+    }
+}
+
+private enum AnalyticsDateRangeFormatters {
+    static func queryDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: date)
+    }
+
+    static func displayDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
+        return formatter.string(from: date)
     }
 }
 
@@ -552,6 +701,7 @@ private struct WorkoutHistoryDetailView: View {
         do {
             let deletedID = try await workoutService.deleteWorkout(id: workout.id, accessToken: accessToken)
             onDelete(deletedID)
+            AppDataRefreshCenter.notifyChange(.workoutDeleted, userInfo: ["workoutID": deletedID])
             dismiss()
         } catch {
             deleteErrorMessage = "Please try again."

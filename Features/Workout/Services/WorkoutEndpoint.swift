@@ -10,7 +10,7 @@ import Foundation
 nonisolated enum WorkoutEndpoint: Sendable {
     case latestWorkout(routineID: String, accessToken: String)
     case completeWorkout(CompleteWorkoutRequest, accessToken: String)
-    case analytics(accessToken: String)
+    case analytics(startDate: String?, endDate: String?, accessToken: String)
     case userWorkouts(userID: String, page: Int, accessToken: String)
     case deleteWorkout(id: String, accessToken: String)
 }
@@ -46,7 +46,12 @@ nonisolated extension WorkoutEndpoint: APIEndpoint {
         switch self {
         case .userWorkouts(_, let page, _):
             return [URLQueryItem(name: "page", value: "\(max(page, 1))")]
-        case .latestWorkout, .completeWorkout, .analytics, .deleteWorkout:
+        case .analytics(let startDate, let endDate, _):
+            return [
+                Self.queryItem(name: "start_date", value: startDate),
+                Self.queryItem(name: "end_date", value: endDate)
+            ].compactMap { $0 }
+        case .latestWorkout, .completeWorkout, .deleteWorkout:
             return []
         }
     }
@@ -60,7 +65,7 @@ nonisolated extension WorkoutEndpoint: APIEndpoint {
                 "Authorization": "Bearer \(accessToken)",
                 "Content-Type": "application/json"
             ]
-        case .analytics(let accessToken):
+        case .analytics(_, _, let accessToken):
             return ["Authorization": "Bearer \(accessToken)"]
         case .userWorkouts(_, _, let accessToken):
             return ["Authorization": "Bearer \(accessToken)"]
@@ -76,5 +81,13 @@ nonisolated extension WorkoutEndpoint: APIEndpoint {
         case .completeWorkout(let request, _):
             return try? JSONEncoder().encode(request)
         }
+    }
+
+    private static func queryItem(name: String, value: String?) -> URLQueryItem? {
+        guard let value, !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return nil
+        }
+
+        return URLQueryItem(name: name, value: value)
     }
 }

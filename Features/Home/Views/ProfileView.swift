@@ -95,6 +95,7 @@ struct ProfileView: View {
                     .frame(maxWidth: .infinity, minHeight: geometry.size.height, alignment: .top)
                 }
                 .scrollIndicators(.hidden)
+                .scrollBounceBehavior(.always)
                 .refreshable {
                     await loadProfile()
                 }
@@ -333,13 +334,17 @@ private extension ProfileView {
                 recentWorkouts = Array(try await workoutService.userWorkouts(userID: userID, page: 1, accessToken: accessToken).prefix(3))
             }
         } catch {
-            errorMessage = "Unable to load recent sessions."
+            if recentWorkouts.isEmpty {
+                errorMessage = "Unable to load recent sessions."
+            }
         }
 
         do {
             personalRecordPage = try await userService.personalRecords(page: 1, limit: 5, accessToken: accessToken)
         } catch {
-            personalRecordsErrorMessage = "Unable to load personal records."
+            if personalRecordPage == nil {
+                personalRecordsErrorMessage = "Unable to load personal records."
+            }
         }
 
         isLoading = false
@@ -562,6 +567,7 @@ private struct PersonalRecordsListView: View {
                 .padding(.bottom, 30)
             }
             .scrollIndicators(.hidden)
+            .scrollBounceBehavior(.always)
             .refreshable {
                 await loadRecords(reset: true)
             }
@@ -1004,6 +1010,7 @@ private struct ProfileEditUserInfoView: View {
             }
 
             _ = try await userService.refreshCurrentUser(accessToken: accessToken)
+            AppDataRefreshCenter.notifyChange(.profileUpdated)
             dismiss()
         } catch {
             errorMessage = "Unable to save changes."

@@ -32,6 +32,7 @@ struct HomeFeedView: View {
                 .frame(maxWidth: .infinity, minHeight: geometry.size.height, alignment: .top)
             }
             .scrollIndicators(.hidden)
+            .scrollBounceBehavior(.always)
         }
         .background(AppColors.background.ignoresSafeArea())
     }

@@ -16,10 +16,14 @@ struct ExercisesView: View {
 
     init(
         selectedExercises: [Exercise] = [],
+        selectionLimit: Int? = nil,
         onCancel: @escaping () -> Void = {},
         onSave: @escaping ([Exercise]) -> Void = { _ in }
     ) {
-        _viewModel = StateObject(wrappedValue: ExercisesViewModel(selectedExercises: selectedExercises))
+        _viewModel = StateObject(wrappedValue: ExercisesViewModel(
+            selectedExercises: selectedExercises,
+            selectionLimit: selectionLimit
+        ))
         self.onCancel = onCancel
         self.onSave = onSave
     }
@@ -43,7 +47,7 @@ struct ExercisesView: View {
                 }
                 .scrollIndicators(.hidden)
                 .refreshable {
-                    await viewModel.loadInitialData()
+                    await viewModel.loadInitialData(preserveExistingData: true)
                 }
             }
         }
