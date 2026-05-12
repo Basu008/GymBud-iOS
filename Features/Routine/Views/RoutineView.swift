@@ -143,10 +143,10 @@ private struct RoutineCardView: View {
             HStack(spacing: 14) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(routine.name)
-                        .font(AppFonts.Headline.bold(23))
+                        .font(AppFonts.Headline.bold(19))
                         .foregroundStyle(AppColors.onBackground)
                         .lineLimit(1)
-                        .minimumScaleFactor(0.75)
+                        .truncationMode(.tail)
 
                     Text("\(routine.exercises.count) EXERCISES")
                         .font(AppFonts.Body.bold(12))

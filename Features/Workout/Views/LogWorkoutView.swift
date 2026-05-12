@@ -21,12 +21,16 @@ struct LogWorkoutView: View {
     @State private var isLoadingPrevious = false
     @State private var isCompletingWorkout = false
     @State private var didCompleteWorkout = false
+    @State private var didDiscardWorkout = false
     @State private var completedWorkout: WorkoutLog?
     @State private var isShowingSkipConfirmation = false
+    @State private var isShowingEndWorkoutConfirmation = false
+    @State private var isShowingNextExerciseConfirmation = false
     @State private var isShowingRoutineUpdateConfirmation = false
     @State private var replacingExerciseIndex: Int?
     @State private var skippedExerciseIDs: Set<String> = []
     @State private var hasReplacedExercises = false
+    @State private var lastTimerUpdateDate = Date()
     private let routine: Routine
     private let workoutService: any WorkoutServiceProtocol
     private let routineService: any RoutineServiceProtocol
@@ -87,6 +91,7 @@ struct LogWorkoutView: View {
             bottomActionBar
         }
         .task {
+            lastTimerUpdateDate = Date()
             if shouldLoadPreviousWorkout {
                 await loadPreviousWorkout()
             }
@@ -95,12 +100,25 @@ struct LogWorkoutView: View {
             incrementElapsedSeconds()
         }
         .onChange(of: scenePhase) { _, phase in
+            updateElapsedSecondsFromLiveClock()
             if phase != .active {
                 cacheCurrentProgress()
             }
         }
         .onDisappear {
-            cacheCurrentProgress()
+            if !didDiscardWorkout {
+                updateElapsedSecondsFromLiveClock()
+                cacheCurrentProgress()
+            }
+        }
+        .interactiveDismissDisabled(true)
+        .alert("End Workout?", isPresented: $isShowingEndWorkoutConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Yes", role: .destructive) {
+                discardWorkoutAndDismiss()
+            }
+        } message: {
+            Text("Are you sure you want to end the workout? This session won't be recorded.")
         }
         .alert("Skip Exercise?", isPresented: $isShowingSkipConfirmation) {
             Button("Cancel", role: .cancel) {}
@@ -108,7 +126,15 @@ struct LogWorkoutView: View {
                 skipCurrentExercise()
             }
         } message: {
-            Text("This exercise will be removed from your workout log.")
+            Text("Are you sure you want to skip this exercise? You can try replacing it by clicking on Replace")
+        }
+        .alert("Finish Exercise?", isPresented: $isShowingNextExerciseConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Yes") {
+                finishCurrentExerciseConfirmed()
+            }
+        } message: {
+            Text("Well done! On to the next one?")
         }
         .alert("Update Routine?", isPresented: $isShowingRoutineUpdateConfirmation) {
             Button("No") {
@@ -122,6 +148,7 @@ struct LogWorkoutView: View {
         }
         .fullScreenCover(item: $completedWorkout) { workout in
             CompleteWorkoutSummaryView(workout: workout, routine: routine) {
+                AppDataRefreshCenter.notifyChange(.workoutCompleted, userInfo: ["workoutID": workout.id])
                 completedWorkout = nil
                 dismiss()
             }
@@ -167,7 +194,7 @@ struct LogWorkoutView: View {
     private var header: some View {
         HStack {
             Button {
-                dismiss()
+                isShowingEndWorkoutConfirmation = true
             } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 16, weight: .semibold))
@@ -243,7 +270,13 @@ struct LogWorkoutView: View {
                         ) {
                             exercises[currentExerciseIndex].sets[setIndex].hasUserEdited = true
                         } onToggleLog: {
-                            exercises[currentExerciseIndex].sets[setIndex].isCompleted.toggle()
+                            if exercises[currentExerciseIndex].sets[setIndex].isCompleted {
+                                exercises[currentExerciseIndex].sets[setIndex].isCompleted = false
+                            } else {
+                                exercises[currentExerciseIndex].sets[setIndex].finalizeEmptyValuesFromHints()
+                                exercises[currentExerciseIndex].sets[setIndex].isCompleted = true
+                            }
+                            errorMessage = nil
                             cacheCurrentProgress()
                         }
                     }
@@ -468,7 +501,26 @@ struct LogWorkoutView: View {
     private func finishCurrentExercise() {
         guard !exercises.isEmpty, !isCompletingWorkout else { return }
 
+        guard exercises[currentExerciseIndex].sets.contains(where: \.isCompleted) else {
+            errorMessage = "Log at least one set before finishing this exercise."
+            return
+        }
+
+        errorMessage = nil
+
+        if currentExerciseIndex < exercises.count - 1 {
+            isShowingNextExerciseConfirmation = true
+            return
+        }
+
+        finishCurrentExerciseConfirmed()
+    }
+
+    private func finishCurrentExerciseConfirmed() {
+        guard !exercises.isEmpty, !isCompletingWorkout else { return }
+
         for index in exercises[currentExerciseIndex].sets.indices {
+            exercises[currentExerciseIndex].sets[index].finalizeEmptyValuesFromHints()
             exercises[currentExerciseIndex].sets[index].isCompleted = true
         }
 
@@ -516,12 +568,25 @@ struct LogWorkoutView: View {
     }
 
     private func incrementElapsedSeconds() {
-        guard scenePhase == .active, !didCompleteWorkout else { return }
-        elapsedSeconds += 1
+        updateElapsedSecondsFromLiveClock()
+    }
+
+    private func updateElapsedSecondsFromLiveClock() {
+        guard !didCompleteWorkout, !didDiscardWorkout else { return }
+
+        let now = Date()
+        let delta = Int(now.timeIntervalSince(lastTimerUpdateDate))
+        guard delta > 0 else { return }
+
+        elapsedSeconds += delta
+        lastTimerUpdateDate = now
+        if exercises.flatMap(\.sets).contains(where: \.isCompleted) {
+            cacheCurrentProgress()
+        }
     }
 
     private func cacheCurrentProgress() {
-        guard !didCompleteWorkout else { return }
+        guard !didCompleteWorkout, !didDiscardWorkout else { return }
 
         guard !exercises.isEmpty else {
             progressStore.clear()
@@ -546,6 +611,12 @@ struct LogWorkoutView: View {
                 updatedAt: Date()
             )
         )
+    }
+
+    private func discardWorkoutAndDismiss() {
+        didDiscardWorkout = true
+        progressStore.clear()
+        dismiss()
     }
 
     private func requestWorkoutCompletion() {
@@ -600,7 +671,6 @@ struct LogWorkoutView: View {
                 didCompleteWorkout = true
                 progressStore.clear()
                 completedWorkout = workout
-                AppDataRefreshCenter.notifyChange(.workoutCompleted, userInfo: ["workoutID": workout.id])
             } catch {
                 errorMessage = "Unable to complete workout."
             }
@@ -1103,8 +1173,7 @@ private struct LogWorkoutSetDraft: Identifiable {
             return reps
         }
 
-        if !hasUserEdited,
-           let placeholderReps = Int(repsPlaceholderText.trimmingCharacters(in: .whitespacesAndNewlines)) {
+        if let placeholderReps = Int(repsPlaceholderText.trimmingCharacters(in: .whitespacesAndNewlines)) {
             return placeholderReps
         }
 
@@ -1116,12 +1185,23 @@ private struct LogWorkoutSetDraft: Identifiable {
             return weight
         }
 
-        if !hasUserEdited,
-           let placeholderWeight = Double(weightPlaceholderText.trimmingCharacters(in: .whitespacesAndNewlines)) {
+        if let placeholderWeight = Double(weightPlaceholderText.trimmingCharacters(in: .whitespacesAndNewlines)) {
             return placeholderWeight
         }
 
         return 0
+    }
+
+    mutating func finalizeEmptyValuesFromHints() {
+        if actualRepsText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+           let placeholderReps = Int(repsPlaceholderText.trimmingCharacters(in: .whitespacesAndNewlines)) {
+            actualRepsText = "\(placeholderReps)"
+        }
+
+        if actualWeightText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+           let placeholderWeight = Double(weightPlaceholderText.trimmingCharacters(in: .whitespacesAndNewlines)) {
+            actualWeightText = Self.formattedWeight(placeholderWeight)
+        }
     }
 
     mutating func applyPreviousWorkoutHints(from previousSet: WorkoutSetLog) {

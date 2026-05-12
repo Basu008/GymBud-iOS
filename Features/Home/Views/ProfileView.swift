@@ -681,7 +681,7 @@ private struct PersonalRecordWideCard: View {
 
                 HStack(spacing: 8) {
                     PRValuePill(label: "\(record.bestReps) reps")
-                    PRValuePill(label: "1RM \(ProfileFormatters.metricValue(record.estimated1RM))kg")
+                    PRValuePill(label: "1RM \(ProfileFormatters.oneRepMaxValue(record.estimated1RM))kg")
                 }
             }
         }
@@ -1140,6 +1140,11 @@ private enum ProfileFormatters {
         value.truncatingRemainder(dividingBy: 1) == 0
             ? String(format: "%.0f", value)
             : String(format: "%.1f", value)
+    }
+
+    nonisolated static func oneRepMaxValue(_ value: Double) -> String {
+        let truncatedValue = (value * 10).rounded(.towardZero) / 10
+        return String(format: "%.1f", truncatedValue)
     }
 
     static func shortDate(_ isoString: String) -> String {
