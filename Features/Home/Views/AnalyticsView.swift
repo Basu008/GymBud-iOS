@@ -57,58 +57,45 @@ struct AnalyticsView: View {
     }
 
     private var analyticsHeader: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("IMPACT TILL NOW")
-                .font(AppFonts.Headline.bold(26))
+        HStack(alignment: .center, spacing: 12) {
+            Text(selectedDateRange.formattedDateRange)
+                .font(AppFonts.Body.bold(14))
                 .foregroundStyle(AppColors.onBackground)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+                .layoutPriority(1)
 
-            VStack(alignment: .leading, spacing: 10) {
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(selectedDateRange.formattedDateRange)
-                        .font(AppFonts.Body.bold(14))
-                        .foregroundStyle(AppColors.onBackground)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.76)
+            Spacer(minLength: 8)
 
-                    Text("DATE RANGE")
-                        .font(AppFonts.Body.bold(10))
-                        .tracking(1.1)
-                        .foregroundStyle(AppColors.onSurfaceVariant)
-                }
-
-                Menu {
-                    ForEach(AnalyticsDateRangeOption.allCases) { option in
-                        Button {
-                            selectedDateRange = option
-                        } label: {
-                            if option == selectedDateRange {
-                                Label(option.title, systemImage: "checkmark")
-                            } else {
-                                Text(option.title)
-                            }
+            Menu {
+                ForEach(AnalyticsDateRangeOption.allCases) { option in
+                    Button {
+                        selectedDateRange = option
+                    } label: {
+                        if option == selectedDateRange {
+                            Label(option.title, systemImage: "checkmark")
+                        } else {
+                            Text(option.title)
                         }
                     }
-                } label: {
-                    HStack(spacing: 8) {
-                        Text(selectedDateRange.title)
-                            .font(AppFonts.Body.bold(12))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.74)
-
-                        Spacer(minLength: 8)
-
-                        Image(systemName: "chevron.down")
-                            .font(.system(size: 11, weight: .bold))
-                    }
-                    .foregroundStyle(AppColors.primary)
-                    .padding(.horizontal, 12)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .frame(height: 38)
-                    .background(AppColors.surfaceVariant.opacity(0.72))
-                    .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
                 }
-                .buttonStyle(.plain)
+            } label: {
+                HStack(spacing: 8) {
+                    Text(selectedDateRange.title)
+                        .font(AppFonts.Body.bold(12))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.74)
+
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 11, weight: .bold))
+                }
+                .foregroundStyle(AppColors.primary)
+                .padding(.horizontal, 12)
+                .frame(minWidth: 118, maxWidth: 152, minHeight: 38)
+                .background(AppColors.surfaceVariant.opacity(0.72))
+                .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
             }
+            .buttonStyle(.plain)
         }
     }
 
@@ -310,8 +297,9 @@ private enum AnalyticsDateRangeFormatters {
 
     static func displayDate(_ date: Date) -> String {
         let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .none
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "d MMM yy"
         return formatter.string(from: date)
     }
 }
